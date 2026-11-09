@@ -7,6 +7,7 @@ import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
 import { saveRun } from '../telemetry.js';
 import { markWin } from '../progress.js';
+import { Radio } from '../ui/Radio.js';
 
 const params = new URLSearchParams(location.search);
 const BOT_PLAN = params.get('bot');
@@ -53,6 +54,9 @@ export class GameScene extends Phaser.Scene {
     this.menuTexts = [0, 1, 2].map(() => this.add.text(0, 0, '', { ...style, color: '#101410' }).setOrigin(0.5).setVisible(false));
 
     this.result = null;
+
+    this.radio = new Radio(this);
+    this.radio.say(`l${this.levelId}_start`);
 
     // Ввод: палец/мышь ведут вертолёт, нажатие по месту — меню постройки
     if (!this.bot) {
@@ -140,13 +144,34 @@ export class GameScene extends Phaser.Scene {
       this.acc -= SIM.dt;
     }
     this.consumeEvents(delta / 1000);
+    this.radio.update(delta / 1000);
     this.draw(delta / 1000);
     this.drawHud();
     if (w.over && !this.result) this.showResult();
   }
 
+  // События мира → реплики радио (каждая не больше раза за забег, см. Radio.say)
+  radioFor(e) {
+    const r = this.radio;
+    const L = this.levelId;
+    if (e.type === 'waveStart') r.say(`l${L}_w${e.index + 1}`);
+    else if (e.type === 'spawn' && e.enemy !== 'goblin') r.say(`first_${e.enemy}`);
+    else if (e.type === 'towerBroken') r.say(`broken_${e.by}`);
+    else if (e.type === 'wireBroken' && e.by === 'berserker') {
+      // Все живые пушки в окопах — значит, сработал подвох уровня 2
+      const alive = this.world.towers.filter((t) => t.alive);
+      r.say(alive.length && alive.every((t) => t.trench) ? 'wire_berserker_trenched' : 'wire_berserker');
+    }
+    else if (e.type === 'boom' && e.by === 'goblin') r.say('mine_goblin');
+    else if (e.type === 'survivorLost') r.say('lost');
+    else if (e.type === 'drop') r.say('drop_first');
+    else if (e.type === 'leak') r.say('leak');
+    else if (e.type === 'over') r.say(e.result);
+  }
+
   consumeEvents() {
     for (const e of this.world.events) {
+      this.radioFor(e);
       if (e.type === 'kill') this.fx.push({ kind: 'kill', x: e.x, y: e.y, t: DRAW.fxTime, color: COLORS[e.enemy] });
       else if (e.type === 'stab') this.fx.push({ kind: 'stab', x: e.x, y: e.y, t: DRAW.fxTime });
       else if (e.type === 'towerBroken' || e.type === 'wireBroken') {

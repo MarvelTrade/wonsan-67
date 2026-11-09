@@ -376,6 +376,28 @@ export const BOT = {
   guardOffset: 70,      // где бот висит в бою: чуть впереди головного врага по дороге
 };
 
+// Радио: плашка сверху с портретом говорящего. Реплики встают в очередь.
+export const RADIO = {
+  show: 3.8,            // с на экране одна реплика
+  gap: 0.35,            // с паузы между репликами
+  maxQueue: 3,          // больше в очереди не копим — старые события уже не к месту
+  y: 56,                // верх плашки
+  width: 640,
+  height: 92,
+  portrait: 76,         // сторона квадрата с портретом
+  pad: 8,
+  slide: 0.2,           // с — выезд и уезд
+  nameSize: 16,
+  textSize: 20,
+};
+
+// Говорящие: цвета портретов-заглушек (позже — арт из библии образов)
+export const SPEAKERS = {
+  sergeant: { bg: 0x3c4a2c, skin: 0xd9b48f, hair: 0x231c16, name: '#c8d48a', headset: true },
+  medic: { bg: 0x4a3434, skin: 0xe2bf9c, hair: 0x2a1d17, name: '#f0a8a0', headset: true, cross: true, longHair: true },
+  institute: { bg: 0x2c3a4a, skin: 0xcfae8c, hair: 0x6b6a66, name: '#9ec3e6', glasses: true },
+};
+
 export const RUNS_KEY = 'wonsan67.runs';
 export const PROGRESS_KEY = 'wonsan67.progress';
 

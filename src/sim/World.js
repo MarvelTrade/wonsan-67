@@ -170,6 +170,7 @@ export class World {
 
   spawnEnemy(type) {
     const cfg = ENEMIES[type];
+    this.events.push({ type: 'spawn', enemy: type });
     const p = this.path.at(0);
     this.enemies.push({
       id: this.nextId++, type, d: 0, x: p.x, y: p.y,
@@ -289,7 +290,7 @@ export class World {
         this.stats.wiresBrokenBy[by] = (this.stats.wiresBrokenBy[by] || 0) + 1;
         const slot = this.slots.find((s) => s.id === w.slot);
         slot.building = null;
-        this.events.push({ type: 'wireBroken', slot: w.slot });
+        this.events.push({ type: 'wireBroken', slot: w.slot, by });
       }
     }
   }
@@ -473,7 +474,7 @@ export class World {
     const slot = this.slots.find((s) => s.id === m.slot);
     slot.building = null;
     this.stats.minesTriggeredBy[by] = (this.stats.minesTriggeredBy[by] || 0) + 1;
-    this.events.push({ type: 'boom', x: m.x, y: m.y });
+    this.events.push({ type: 'boom', x: m.x, y: m.y, by });
     for (const e of [...this.enemies]) {
       if (Math.hypot(e.x - m.x, e.y - m.y) <= cfg.radius) this.hit(e, cfg.damage, 'mine');
     }

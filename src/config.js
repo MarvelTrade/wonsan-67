@@ -382,13 +382,14 @@ export const RADIO = {
   gap: 0.35,            // с паузы между репликами
   maxQueue: 3,          // больше в очереди не копим — старые события уже не к месту
   y: 56,                // верх плашки
-  width: 640,
-  height: 92,
-  portrait: 76,         // сторона квадрата с портретом
+  width: 780,
+  height: 116,
+  portrait: 98,         // сторона квадрата с портретом
   pad: 8,
+  alpha: 0.78,          // фон полупрозрачный: на уровне 3 под плашкой проходит дорога
   slide: 0.2,           // с — выезд и уезд
-  nameSize: 16,
-  textSize: 20,
+  nameSize: 20,
+  textSize: 26,         // 20 → 26, см. DRAW.fontSize
 };
 
 // Говорящие: цвета портретов-заглушек (позже — арт из библии образов)
@@ -409,8 +410,8 @@ export const WORLD_MAP = {
   nodeRadius: 46,
   roadDash: 14,
   titleSize: 64,
-  nodeFont: 34,
-  labelFont: 20,
+  nodeFont: 40,
+  labelFont: 26,
 };
 
 // Размеры отрисовки (только картинка, на правила не влияют)
@@ -431,10 +432,15 @@ export const DRAW = {
   wireWidth: 34,
   hpBarW: 28,
   hpBarH: 4,
-  menuW: 170,
-  menuH: 40,
+  menuW: 230,           // 170×40 → 230×52: на телефоне лёжа (812×375) игра ужимается вдвое
+  menuH: 52,
   menuGap: 8,
-  fontSize: 20,
+  fontSize: 26,         // 20 → 26: на телефоне лёжа выходило ~10 px
+  resultTitle: 44,
+  resultW: 1060,
+  resultH: 500,
+  resultBody: 24,
+  resultButton: 30,
   hudPad: 14,
   fxTime: 0.35,         // с — вспышки попаданий и смертей
   gatePulse: 2.5,       // рад/с

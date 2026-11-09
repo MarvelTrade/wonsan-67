@@ -14,6 +14,10 @@
       -webkit-tap-highlight-color: transparent;
     }
     #game { width: 100%; height: 100%; }
+    /* Телефон стоя: игра горизонтальная — просим повернуть */
+    #rotate { display: none; position: fixed; inset: 0; z-index: 5; background: #1d241f; color: #f4f0e4;
+      font: 22px Arial, sans-serif; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+    @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
   </style>
 </head>
 <body>

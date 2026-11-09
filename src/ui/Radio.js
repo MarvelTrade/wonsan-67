@@ -14,7 +14,7 @@ export class Radio {
     const H = RADIO.height;
     this.box = scene.add.container(VIEW.width / 2 - W / 2, -H - 10).setDepth(15);
     const bg = scene.add.graphics();
-    bg.fillStyle(COLORS.panel, 0.9).fillRoundedRect(0, 0, W, H, 10);
+    bg.fillStyle(COLORS.panel, RADIO.alpha).fillRoundedRect(0, 0, W, H, 10);
     bg.lineStyle(2, 0x6b7a5a, 0.8).strokeRoundedRect(0, 0, W, H, 10);
     this.portrait = scene.add.graphics();
     const textX = RADIO.pad * 2 + RADIO.portrait;
@@ -38,7 +38,16 @@ export class Radio {
     if (this.queue.length > RADIO.maxQueue) this.queue.shift();
   }
 
+  // Замолчать и убрать плашку (экран итогов)
+  stop() {
+    this.queue = [];
+    this.current = null;
+    this.box.y = -RADIO.height - 10;
+    this.stopped = true;
+  }
+
   update(dt) {
+    if (this.stopped) return;
     const hiddenY = -RADIO.height - 10;
     if (!this.current) {
       this.pause -= dt;

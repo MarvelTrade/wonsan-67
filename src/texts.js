@@ -1,6 +1,7 @@
 // Все тексты интерфейса — здесь
 export const T = {
   title: 'ВОНСАН-67',
+  rotate: 'Поверни телефон горизонтально',
   mapSubtitle: '1967 · восточное побережье · выбери серию',
   locked: '✕',
   mapWon: 'пройдена',
@@ -62,12 +63,26 @@ export const T = {
     win: ['institute', 'Убежище устояло. Хорошая работа, шестьдесят седьмой.'],
     lose: ['medic', 'Убежище… мы его потеряли.'],
   },
-  summary: (r) => [
-    `Волна: ${r.wave}   Время: ${Math.floor(r.duration / 60)}:${String(r.duration % 60).padStart(2, '0')}`,
-    `Спасено: ${r.saved}   Пропало: ${r.lostSurvivors}`,
-    `Потрачено: пушки ${r.spentTowers}, проволока ${r.spentWire}${r.trenchesBuilt ? `, окопы ${r.spentTrench}` : ''}${r.minesBuilt ? `, мины ${r.spentMines}` : ''}   Осталось людей: ${r.peopleLeft}`,
-    `Пушек сломано: ${r.towersBroken}${r.towersBroken ? ` (копейщики: ${r.brokenBy.spearman || 0}, берсерки: ${r.brokenBy.berserker || 0}${r.brokenBy.mine ? `, свои мины: ${r.brokenBy.mine}` : ''})` : ''}   Проволоки порвано: ${r.wiresBroken}${r.wiresBrokenBy.berserker ? ` (берсерки: ${r.wiresBrokenBy.berserker})` : ''}`,
-    ...(r.minesBuilt ? [`Мин взорвано: ${Object.values(r.minesTriggeredBy || {}).reduce((a, b) => a + b, 0)} из ${r.minesBuilt} (под гоблинами: ${(r.minesTriggeredBy || {}).goblin || 0})   Убито минами: ${r.killsBy.mine || 0}`] : []),
-    `Убито: гоблины ${r.kills.goblin}, копейщики ${r.kills.spearman}${r.kills.berserker ? `, берсерки ${r.kills.berserker}` : ''}   Прорвалось: ${r.leaked}`,
-  ],
+  // Итоги забега — короткими строками, чтобы читались на телефоне
+  summary: (r) => {
+    const by = r.brokenBy || {};
+    const spent = [`пушки ${r.spentTowers}`, `проволока ${r.spentWire}`];
+    if (r.trenchesBuilt) spent.push(`окопы ${r.spentTrench}`);
+    if (r.minesBuilt) spent.push(`мины ${r.spentMines}`);
+    const who = [`копейщики ${by.spearman || 0}`];
+    if (by.berserker) who.push(`берсерки ${by.berserker}`);
+    if (by.mine) who.push(`свои мины ${by.mine}`);
+    const trig = r.minesTriggeredBy || {};
+    const kills = [`гоблины ${r.kills.goblin}`, `копейщики ${r.kills.spearman}`];
+    if (r.kills.berserker) kills.push(`берсерки ${r.kills.berserker}`);
+    return [
+      `Волна: ${r.wave}   Время: ${Math.floor(r.duration / 60)}:${String(r.duration % 60).padStart(2, '0')}`,
+      `Спасено: ${r.saved}   Пропало: ${r.lostSurvivors}   Осталось людей: ${r.peopleLeft}`,
+      `Потрачено: ${spent.join(' · ')}`,
+      `Пушек сломано: ${r.towersBroken}${r.towersBroken ? ` (${who.join(', ')})` : ''}`,
+      ...(r.wiresBuilt ? [`Проволоки порвано: ${r.wiresBroken}${r.wiresBrokenBy?.berserker ? ` (берсерки ${r.wiresBrokenBy.berserker})` : ''}`] : []),
+      ...(r.minesBuilt ? [`Мины: взорвано ${Object.values(trig).reduce((a, b) => a + b, 0)} из ${r.minesBuilt}, под гоблинами ${trig.goblin || 0}, убито минами ${r.killsBy.mine || 0}`] : []),
+      `Убито: ${kills.join(', ')}   Прорвалось: ${r.leaked}`,
+    ];
+  },
 };

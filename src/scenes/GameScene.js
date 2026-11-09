@@ -167,7 +167,6 @@ export class GameScene extends Phaser.Scene {
     else if (e.type === 'survivorLost') r.say('lost');
     else if (e.type === 'drop') r.say('drop_first');
     else if (e.type === 'leak') r.say('leak');
-    else if (e.type === 'over') r.say(e.result);
   }
 
   consumeEvents() {
@@ -414,42 +413,48 @@ export class GameScene extends Phaser.Scene {
       this.saved = true;
     }
     this.closeMenu();
+    this.radio.stop();
     const cx = VIEW.width / 2;
     const cy = VIEW.height / 2;
     const panel = this.add.graphics().setDepth(20);
-    panel.fillStyle(COLORS.panel, 0.88).fillRoundedRect(cx - 420, cy - 190, 840, 380, 12);
-    const title = this.add.text(cx, cy - 150, w.over === 'win' ? T.win : T.lose, {
-      fontFamily: 'Arial, sans-serif', fontSize: '40px', color: w.over === 'win' ? '#9be37a' : '#ff8a6a',
+    panel.fillStyle(COLORS.panel, 0.88).fillRoundedRect(cx - DRAW.resultW / 2, cy - DRAW.resultH / 2, DRAW.resultW, DRAW.resultH, 12);
+    const title = this.add.text(cx, cy - DRAW.resultH / 2 + 44, w.over === 'win' ? T.win : T.lose, {
+      fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultTitle}px`, color: w.over === 'win' ? '#9be37a' : '#ff8a6a',
     }).setOrigin(0.5).setDepth(21);
-    const body = this.add.text(cx, cy - 20, T.summary(r).join('\n'), {
-      fontFamily: 'Arial, sans-serif', fontSize: '20px', color: COLORS.text, align: 'center', lineSpacing: 8,
+    // Последняя реплика по радио — цитатой под заголовком
+    const [who, quote] = T.radio[w.over];
+    this.add.text(cx, cy - DRAW.resultH / 2 + 88, `«${quote}» — ${T.speakers[who]}`, {
+      fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultBody * 0.85}px`, fontStyle: 'italic', color: COLORS.textDim,
     }).setOrigin(0.5).setDepth(21);
-    const btn = this.add.text(cx, cy + 135, T.again, {
-      fontFamily: 'Arial, sans-serif', fontSize: '28px', color: '#101410', backgroundColor: '#ffe066',
+    const body = this.add.text(cx, cy + 4, T.summary(r).join('\n'), {
+      fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultBody}px`, color: COLORS.text, align: 'center', lineSpacing: 8,
+    }).setOrigin(0.5).setDepth(21);
+    const btn = this.add.text(cx, cy + DRAW.resultH / 2 - 52, T.again, {
+      fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultButton}px`, color: '#101410', backgroundColor: '#ffe066',
       padding: { x: 28, y: 10 },
     }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
     const next = LEVELS.find((l) => l.id === this.levelId + 1);
     const canNext = w.over === 'win' && next && !this.bot;
-    btn.setX(cx - (canNext ? 200 : 100));
+    btn.setX(cx - (canNext ? 250 : 125));
     if (!this.bot) {
-      const mapBtn = this.add.text(canNext ? cx : cx + 100, cy + 135, T.toMap, {
-        fontFamily: 'Arial, sans-serif', fontSize: '28px', color: '#101410', backgroundColor: '#cfd3c8',
+      const mapBtn = this.add.text(canNext ? cx : cx + 125, cy + DRAW.resultH / 2 - 52, T.toMap, {
+        fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultButton}px`, color: '#101410', backgroundColor: '#cfd3c8',
         padding: { x: 28, y: 10 },
       }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
       mapBtn.on('pointerdown', () => this.scene.start('map'));
     } else btn.setX(cx);
     btn.on('pointerdown', () => this.scene.restart({ level: this.levelId }));
     if (canNext) {
-      const nextBtn = this.add.text(cx + 200, cy + 135, T.next, {
-        fontFamily: 'Arial, sans-serif', fontSize: '28px', color: '#101410', backgroundColor: '#9be37a',
+      const nextBtn = this.add.text(cx + 250, cy + DRAW.resultH / 2 - 52, T.next, {
+        fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultButton}px`, color: '#101410', backgroundColor: '#9be37a',
         padding: { x: 28, y: 10 },
       }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
       nextBtn.on('pointerdown', () => this.scene.restart({ level: next.id }));
     }
     if (!this.bot) {
       const n = JSON.parse(statsText()).runs.length;
-      const copyBtn = this.add.text(cx, cy + 215, T.copyStats(n), {
-        fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#101410', backgroundColor: '#cfd3c8',
+      const copyBtn = this.add.text(cx, cy + DRAW.resultH / 2 + 34, T.copyStats(n), {
+        fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.fontSize * 0.8}px`, color: '#101410', backgroundColor: '#cfd3c8',
         padding: { x: 14, y: 6 },
       }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
       copyBtn.on('pointerdown', async () => copyBtn.setText((await copyStats()) ? T.copied : T.copyFailed));

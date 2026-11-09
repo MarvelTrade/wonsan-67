@@ -8,8 +8,13 @@ export const T = {
   onboard: (n, cap) => `На борту: ${n}/${cap}`,
   shelter: (hp, max) => `Убежище: ${hp}/${max}`,
   hintStart: 'Веди вертолёт пальцем. Забирай людей и вези к грузовику. Нажми на круг — построить.',
+  hints: {
+    2: 'Орки-берсерки рубят пушки. Нажми на готовую пушку — окопай её.',
+  },
   tower: (cost) => `Пушка · ${cost}`,
   wire: (cost) => `Проволока · ${cost}`,
+  trench: (cost) => `Окоп · ${cost}`,
+  next: 'Дальше',
   win: 'Убежище устояло',
   lose: 'Убежище пало',
   again: 'Ещё раз',
@@ -17,8 +22,8 @@ export const T = {
   summary: (r) => [
     `Волна: ${r.wave}   Время: ${Math.floor(r.duration / 60)}:${String(r.duration % 60).padStart(2, '0')}`,
     `Спасено: ${r.saved}   Пропало: ${r.lostSurvivors}`,
-    `Потрачено: пушки ${r.spentTowers}, проволока ${r.spentWire}   Осталось людей: ${r.peopleLeft}`,
-    `Пушек сломано: ${r.towersBroken}${r.towersBroken ? ` (копейщики: ${r.brokenBy.spearman || 0})` : ''}   Проволоки порвано: ${r.wiresBroken}`,
-    `Убито: гоблины ${r.kills.goblin}, копейщики ${r.kills.spearman}   Прорвалось: ${r.leaked}`,
+    `Потрачено: пушки ${r.spentTowers}, проволока ${r.spentWire}${r.trenchesBuilt ? `, окопы ${r.spentTrench}` : ''}   Осталось людей: ${r.peopleLeft}`,
+    `Пушек сломано: ${r.towersBroken}${r.towersBroken ? ` (копейщики: ${r.brokenBy.spearman || 0}, берсерки: ${r.brokenBy.berserker || 0})` : ''}   Проволоки порвано: ${r.wiresBroken}${r.wiresBrokenBy.berserker ? ` (берсерки: ${r.wiresBrokenBy.berserker})` : ''}`,
+    `Убито: гоблины ${r.kills.goblin}, копейщики ${r.kills.spearman}${r.kills.berserker ? `, берсерки ${r.kills.berserker}` : ''}   Прорвалось: ${r.leaked}`,
   ],
 };

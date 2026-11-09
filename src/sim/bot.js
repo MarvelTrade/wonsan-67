@@ -1,20 +1,33 @@
 // Бот для замеров: водит вертолёт (люди → грузовик, иначе — над головным врагом) и строит по плану.
-// План: '2t1w' — 2 пушки и 1 проволока, места по порядку из BOT.order; 'trap' и др. — из BOT.plans.
-import { BOT, HELI, MAP } from '../config.js';
+// План: '2t1w' — 2 пушки и 1 проволока; '3t1w2e' — ещё 2 окопа у первых двух пушек.
+// Места — по порядку из bot.order уровня; именованные планы ('trap') — из bot.plans.
+import { BOT, HELI } from '../config.js';
 
-export function parsePlan(spec) {
-  if (BOT.plans[spec]) return BOT.plans[spec].map((b) => ({ ...b }));
-  const m = /^(\d+)t(\d+)w$/.exec(spec || '');
+export function parsePlan(spec, bot) {
+  if (bot.plans[spec]) return bot.plans[spec].map((b) => ({ ...b }));
+  const m = /^(\d+)t(\d+)w(?:(\d+)e)?$/.exec(spec || '');
   if (!m) return null;
-  const want = { tower: +m[1], wire: +m[2] };
-  const used = { tower: 0, wire: 0 };
+  const want = { tower: +m[1], wire: +m[2], trench: +(m[3] || 0) };
+  const used = { tower: 0, wire: 0, trench: 0 };
   const taken = new Set();
+  const towerSlots = [];
   const queue = [];
-  const pick = (kind) => BOT.order[kind].find((id) => !taken.has(id));
+  const pick = (kind) => bot.order[kind].find((id) => !taken.has(id));
   let guard = 0;
-  while ((used.tower < want.tower || used.wire < want.wire) && guard++ < 50) {
-    for (const kind of BOT.sequence) {
+  while ((used.tower < want.tower || used.wire < want.wire || used.trench < want.trench) && guard++ < 50) {
+    for (const kind of bot.sequence) {
       if (used[kind] >= want[kind]) continue;
+      if (kind === 'trench') {
+        // Окоп — у пушки, по порядку постройки; пушки ещё нет в очереди — ждём следующего круга
+        const slot = towerSlots[used.trench];
+        if (!slot) {
+          if (used.tower >= want.tower) used.trench = want.trench;
+          continue;
+        }
+        used.trench++;
+        queue.push({ kind, slot });
+        continue;
+      }
       const slot = pick(kind);
       if (!slot) {
         used[kind] = want[kind];
@@ -22,6 +35,7 @@ export function parsePlan(spec) {
       }
       taken.add(slot);
       used[kind]++;
+      if (kind === 'tower') towerSlots.push(slot);
       queue.push({ kind, slot });
     }
   }
@@ -31,16 +45,21 @@ export function parsePlan(spec) {
 export class Bot {
   constructor(world, spec) {
     this.world = world;
-    this.queue = parsePlan(spec) || [];
+    this.queue = parsePlan(spec, world.level.bot) || [];
   }
 
   step() {
     const w = this.world;
     if (w.over) return;
-    // Строить по очереди, как только хватает людей
+    // Окоп у пушки, которую уже сломали, — пропустить, иначе бот встанет
     const next = this.queue[0];
-    if (next && w.canBuild(next.slot, next.kind)) {
-      w.build(next.slot, next.kind);
+    if (next?.kind === 'trench') {
+      const slot = w.slots.find((s) => s.id === next.slot);
+      if (slot.building?.kind !== 'tower' && w.towers.some((t) => t.slot === next.slot)) this.queue.shift();
+    }
+    const item = this.queue[0];
+    if (item && w.canBuild(item.slot, item.kind)) {
+      w.build(item.slot, item.kind);
       this.queue.shift();
     }
     w.heli.target = this.heliTarget();
@@ -49,7 +68,7 @@ export class Bot {
   heliTarget() {
     const w = this.world;
     const h = w.heli;
-    const truck = { x: MAP.truck.x, y: MAP.truck.y };
+    const truck = { x: w.map.truck.x, y: w.map.truck.y };
     if (h.carrying >= HELI.capacity) return truck;
     // Ближайший человек, до которого успеваем долететь
     let best = null;

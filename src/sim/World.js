@@ -1,5 +1,5 @@
 // Вся логика забега без Phaser: её гоняет и сцена в браузере, и бот в Node (scripts/sim.mjs).
-import { MAP, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, WAVES, SIM, VIEW } from '../config.js';
+import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW } from '../config.js';
 import { Path, rng } from './path.js';
 
 // Границы мира — по размеру экрана (мир = экран)
@@ -7,25 +7,30 @@ const MAP_W = VIEW.width;
 const MAP_H = VIEW.height;
 
 export class World {
-  constructor({ seed = Date.now() % 1e9, plan = 'human' } = {}) {
+  constructor({ seed = Date.now() % 1e9, plan = 'human', level = 1 } = {}) {
+    this.level = LEVELS[Math.max(0, Math.min(LEVELS.length, level) - 1)];
+    this.map = this.level.map;
+    this.waves = this.level.waves;
+    // Люди: общие числа, уровень может переопределить часть
+    this.surv = { ...SURVIVORS, ...(this.level.survivors || {}) };
     this.seed = seed;
     this.rand = rng(seed);
-    this.path = new Path(MAP.road);
+    this.path = new Path(this.map.road);
     this.t = 0;
     this.over = null; // 'win' | 'lose'
     this.events = []; // для отрисовки: выстрелы, удары, поломки; сцена забирает и чистит
 
     this.shelter = { hp: SHELTER.hp, maxHp: SHELTER.hp };
-    this.people = SURVIVORS.startPeople;
+    this.people = this.surv.startPeople;
 
     this.heli = {
-      x: HELI.startX, y: HELI.startY, vx: 0, vy: 0, rot: 0, rotor: 0,
+      x: this.map.heliStart.x, y: this.map.heliStart.y, vx: 0, vy: 0, rot: 0, rotor: 0,
       target: null,   // { x, y } — точка, к которой летит (палец/мышь)
       dir: null,      // { x, y } — направление с клавиатуры
       carrying: 0, cd: 0,
     };
 
-    this.slots = MAP.slots.map((s) => {
+    this.slots = this.map.slots.map((s) => {
       const near = this.path.nearest(s.x, s.y);
       return { ...s, roadD: near.d, roadX: near.x, roadY: near.y, building: null };
     });
@@ -35,18 +40,18 @@ export class World {
     this.shots = [];
     this.survivors = [];
     this.nextId = 1;
-    this.survivorT = SURVIVORS.firstAt;
+    this.survivorT = this.surv.firstAt;
 
     // Волны: build → wave → break → wave … → win
-    this.wave = { index: -1, phase: 'build', timer: WAVES.firstAt, spawns: [], elapsed: 0 };
+    this.wave = { index: -1, phase: 'build', timer: this.waves.firstAt, spawns: [], elapsed: 0 };
 
     this.stats = {
-      plan, seed,
+      plan, seed, level: this.level.id,
       saved: 0, lostSurvivors: 0,
-      spentTowers: 0, spentWire: 0,
-      towersBuilt: 0, wiresBuilt: 0,
-      towersBroken: 0, brokenBy: {}, wiresBroken: 0,
-      kills: { goblin: 0, spearman: 0 }, killsBy: { heli: 0, tower: 0 },
+      spentTowers: 0, spentWire: 0, spentTrench: 0,
+      towersBuilt: 0, wiresBuilt: 0, trenchesBuilt: 0,
+      towersBroken: 0, brokenBy: {}, wiresBroken: 0, wiresBrokenBy: {},
+      kills: { goblin: 0, spearman: 0, berserker: 0 }, killsBy: { heli: 0, tower: 0 },
       leaked: 0,
     };
   }
@@ -54,7 +59,10 @@ export class World {
   // ---------- Постройки ----------
   canBuild(slotId, kind) {
     const slot = this.slots.find((s) => s.id === slotId);
-    return !!slot && !slot.building && !this.over && this.people >= BUILD[kind].cost;
+    if (!slot || this.over || !this.level.builds.includes(kind) || this.people < BUILD[kind].cost) return false;
+    // Окоп — только вокруг готовой пушки, один раз
+    if (kind === 'trench') return slot.building?.kind === 'tower' && !slot.building.ref.trench;
+    return !slot.building;
   }
 
   build(slotId, kind) {
@@ -68,6 +76,10 @@ export class World {
       slot.building = { kind, ref: tower };
       this.stats.spentTowers += cfg.cost;
       this.stats.towersBuilt++;
+    } else if (kind === 'trench') {
+      slot.building.ref.trench = true;
+      this.stats.spentTrench += cfg.cost;
+      this.stats.trenchesBuilt++;
     } else {
       const wire = {
         id: this.nextId++, slot: slot.id,
@@ -123,17 +135,17 @@ export class World {
     }
     const spawning = w.spawns.some((s) => s.left > 0);
     if (!spawning && this.enemies.length === 0) {
-      if (w.index >= WAVES.list.length - 1) this.finish('win');
+      if (w.index >= this.waves.list.length - 1) this.finish('win');
       else {
         w.phase = 'break';
-        w.timer = WAVES.breakTime;
+        w.timer = this.waves.breakTime;
         this.events.push({ type: 'waveCleared', index: w.index });
       }
     }
   }
 
   startWave(index) {
-    const def = WAVES.list[index];
+    const def = this.waves.list[index];
     this.wave = {
       index, phase: 'wave', timer: 0, elapsed: 0,
       spawns: def.groups.map((g) => ({ type: g.type, left: g.count, every: g.every, next: g.at })),
@@ -153,6 +165,7 @@ export class World {
     this.enemies.push({
       id: this.nextId++, type, d: 0, x: p.x, y: p.y,
       hp: cfg.hp, maxHp: cfg.hp, stabT: 0, hurtT: 0, slowed: false, stabAt: null,
+      state: 'road', goal: null, smashT: 0, // берсерк: road → charge → return
       // небольшой разброс поперёк дороги, чтобы пачка не сливалась в точку
       lane: (this.rand() - 0.5) * 18,
     });
@@ -162,12 +175,12 @@ export class World {
   updateSurvivors(dt) {
     this.survivorT -= dt;
     if (this.survivorT <= 0) {
-      this.survivorT += SURVIVORS.every;
-      if (this.survivors.length < SURVIVORS.maxAlive) {
-        const free = MAP.survivorSpots.filter(([x, y]) => !this.survivors.some((s) => s.x === x && s.y === y));
+      this.survivorT += this.surv.every;
+      if (this.survivors.length < this.surv.maxAlive) {
+        const free = this.map.survivorSpots.filter(([x, y]) => !this.survivors.some((s) => s.x === x && s.y === y));
         if (free.length) {
           const [x, y] = free[Math.floor(this.rand() * free.length)];
-          this.survivors.push({ id: this.nextId++, x, y, life: SURVIVORS.life });
+          this.survivors.push({ id: this.nextId++, x, y, life: this.surv.life });
         }
       }
     }
@@ -225,7 +238,7 @@ export class World {
       this.survivors = this.survivors.filter((s) => !s.taken);
     }
     // Сдать у грузовика
-    if (h.carrying > 0 && Math.hypot(MAP.truck.x - h.x, MAP.truck.y - h.y) <= HELI.dropRadius) {
+    if (h.carrying > 0 && Math.hypot(this.map.truck.x - h.x, this.map.truck.y - h.y) <= HELI.dropRadius) {
       this.people += h.carrying;
       this.stats.saved += h.carrying;
       this.events.push({ type: 'drop', n: h.carrying });
@@ -263,6 +276,8 @@ export class World {
       if (w.hp <= 0) {
         w.alive = false;
         this.stats.wiresBroken++;
+        const by = w.lastBy || 'trample'; // trample — порвали те, кто в ней застрял
+        this.stats.wiresBrokenBy[by] = (this.stats.wiresBrokenBy[by] || 0) + 1;
         const slot = this.slots.find((s) => s.id === w.slot);
         slot.building = null;
         this.events.push({ type: 'wireBroken', slot: w.slot });
@@ -280,14 +295,19 @@ export class World {
     const leaked = [];
     for (const e of this.enemies) {
       const cfg = ENEMIES[e.type];
+      e.hurtT = Math.max(0, e.hurtT - dt);
+      // Берсерк вне дороги: бежит к постройке, рубит её или возвращается
+      if (e.type === 'berserker' && this.updateBerserker(e, cfg, dt)) continue;
       const wire = this.wireAt(e.d);
       e.slowed = !!wire;
-      if (wire) wire.hp -= BUILD.wire.damagePerEnemy * dt;
+      if (wire) {
+        wire.hp -= BUILD.wire.damagePerEnemy * dt;
+        if (wire.lastBy !== 'berserker') wire.lastBy = 'trample';
+      }
       e.d += cfg.speed * (wire ? BUILD.wire.slow : 1) * dt;
       const p = this.path.at(e.d);
       e.x = p.x;
       e.y = p.y + e.lane;
-      e.hurtT = Math.max(0, e.hurtT - dt);
 
       // Копейщик бьёт на ходу любую постройку, до которой достаёт копьё
       if (cfg.reach > 0) {
@@ -319,6 +339,88 @@ export class World {
       this.enemies = this.enemies.filter((e) => !leaked.includes(e));
       this.shelter.hp = Math.max(0, this.shelter.hp);
     }
+  }
+
+  // Берсерк. Возвращает true, пока он не на дороге (тогда обычное движение по дороге пропускаем).
+  updateBerserker(e, cfg, dt) {
+    if (e.state === 'road') {
+      const goal = this.berserkerGoal(e, cfg);
+      if (!goal) return false;
+      e.state = 'charge';
+      e.goal = goal;
+      e.smashT = 0;
+    }
+    if (e.state === 'charge') {
+      const g = e.goal;
+      // Цель сломана или её окопали — назад на дорогу
+      if (!g.ref.alive || (g.kind === 'tower' && g.ref.trench)) {
+        e.state = 'return';
+      } else {
+        const dist = Math.hypot(g.x - e.x, g.y - e.y);
+        if (dist > cfg.smashReach) {
+          this.moveTo(e, g.x, g.y, cfg.chargeSpeed * dt);
+        } else {
+          e.smashT -= dt;
+          if (e.smashT <= 0) {
+            e.smashT = cfg.smashEvery;
+            e.stabAt = { x: g.x, y: g.y, t: 0.25 };
+            this.events.push({ type: 'smash', x: g.x, y: g.y });
+            g.ref.hp -= cfg.smashDamage;
+            if (g.kind === 'tower' && g.ref.hp <= 0) this.breakTower(g.ref, e.type);
+            if (g.kind === 'wire') g.ref.lastBy = 'berserker';
+          }
+        }
+      }
+    }
+    if (e.stabAt) {
+      e.stabAt.t -= dt;
+      if (e.stabAt.t <= 0) e.stabAt = null;
+    }
+    if (e.state === 'return') {
+      const p = this.path.at(e.d);
+      const back = { x: p.x, y: p.y + e.lane };
+      if (Math.hypot(back.x - e.x, back.y - e.y) <= cfg.chargeSpeed * dt) {
+        e.state = 'road';
+        e.goal = null;
+        e.x = back.x;
+        e.y = back.y;
+      } else this.moveTo(e, back.x, back.y, cfg.chargeSpeed * dt);
+    }
+    e.slowed = false;
+    return e.state !== 'road';
+  }
+
+  // Ближайшая постройка без окопа в пределах видимости: пушка или проволока
+  berserkerGoal(e, cfg) {
+    let best = null;
+    let bestD = cfg.chargeRange;
+    for (const t of this.towers) {
+      if (!t.alive || t.trench) continue;
+      const d = Math.hypot(t.x - e.x, t.y - e.y);
+      if (d <= bestD) {
+        bestD = d;
+        best = { kind: 'tower', ref: t, x: t.x, y: t.y };
+      }
+    }
+    for (const w of this.wires) {
+      if (!w.alive) continue;
+      const c = this.path.at((w.d0 + w.d1) / 2);
+      const d = Math.hypot(c.x - e.x, c.y - e.y);
+      if (d <= bestD) {
+        bestD = d;
+        best = { kind: 'wire', ref: w, x: c.x, y: c.y };
+      }
+    }
+    return best;
+  }
+
+  moveTo(e, x, y, step) {
+    const dx = x - e.x;
+    const dy = y - e.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const k = Math.min(1, step / dist);
+    e.x += dx * k;
+    e.y += dy * k;
   }
 
   towerInReach(e, reach) {
@@ -404,17 +506,21 @@ export class World {
       plan: s.plan,
       seed: s.seed,
       result: this.over || 'quit',
-      wave: this.waveNumber > WAVES.list.length ? WAVES.list.length : this.waveNumber,
+      level: this.level.id,
+      wave: Math.min(this.waveNumber, this.waves.list.length),
       saved: s.saved,
       lostSurvivors: s.lostSurvivors,
       spentTowers: s.spentTowers,
       spentWire: s.spentWire,
+      spentTrench: s.spentTrench,
       peopleLeft: this.people,
       towersBuilt: s.towersBuilt,
       wiresBuilt: s.wiresBuilt,
+      trenchesBuilt: s.trenchesBuilt,
       towersBroken: s.towersBroken,
       brokenBy: s.brokenBy,
       wiresBroken: s.wiresBroken,
+      wiresBrokenBy: s.wiresBrokenBy,
       kills: s.kills,
       killsBy: s.killsBy,
       leaked: s.leaked,

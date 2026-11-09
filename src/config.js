@@ -31,6 +31,10 @@ export const COLORS = {
   towerBullet: 0xffc66b,
   goblin: 0x58d64a,
   spearman: 0x2f9e3a,
+  berserker: 0xc4432c,
+  axe: 0x9aa0a6,
+  trench: 0x3b2f22,
+  trenchEdge: 0x6b5638,
   spear: 0xd8c08a,
   enemyHurt: 0xffffff,
   survivor: 0xffffff,
@@ -48,10 +52,11 @@ export const COLORS = {
 };
 
 // Карта уровня 1. Враги выходят из врат справа и идут по дороге к убежищу слева.
-export const MAP = {
+const MAP_1 = {
   gate: { x: 1190, y: 190, r: 46 },
   shelter: { x: 80, y: 560, w: 110, h: 90 },
   truck: { x: 150, y: 470 },          // сюда вертолёт сдаёт спасённых
+  heliStart: { x: 200, y: 420 },
   // Дорога — ломаная от врат к убежищу
   road: [
     [1190, 190],
@@ -80,8 +85,6 @@ export const MAP = {
 // Вертолёт: управление и инерция взяты из GORKY-67 (PLAYER), пулемёт ослаблен —
 // здесь основа обороны постройки, а не вертолёт.
 export const HELI = {
-  startX: 200,
-  startY: 420,
   maxSpeed: 320,        // px/с (как в GORKY-67)
   accel: 6,             // 1/с, меньше = больше инерции (как в GORKY-67)
   turnSpeed: 7,         // рад/с
@@ -125,6 +128,9 @@ export const BUILD = {
     slow: 0.35,         // множитель скорости внутри
     damagePerEnemy: 2,  // урон проволоке в секунду от каждого, кто в ней застрял (6 → 2, см. hp)
   },
+  trench: {             // окоп вокруг готовой пушки: к ней не подойдёт берсерк
+    cost: 2,            // 3 → 2: при 3 бот не успевал окопать пушки до прихода берсерков, 0/30 у всех планов
+  },
   menuRadius: 40,       // радиус нажатия по месту постройки
 };
 
@@ -146,6 +152,21 @@ export const ENEMIES = {
     stabDamage: 6,      // урон за удар (11 → 6: при 11 пушки ломались в каждом забеге при любой расстановке)
     stabEvery: 1.2,     // с между ударами; бьёт на ходу, не останавливаясь
   },
+  // Орк-берсерк: увидел постройку без окопа — сходит с дороги, бежит к ней и рубит, пока не сломает,
+  // потом возвращается на дорогу. Окопанные пушки не трогает — выбирает ближайшую неокопанную постройку,
+  // в том числе проволоку.
+  berserker: {
+    hp: 130,            // 240 → 130: при 240 и 180 уровень 2 не проходился ни одним планом
+    speed: 55,          // по дороге
+    chargeSpeed: 105,   // бегом к постройке и обратно
+    radius: 13,
+    shelterDamage: 3,
+    reach: 0,           // копья нет
+    chargeRange: 150,   // видит постройку не дальше этого от себя
+    smashReach: 26,     // бьёт, когда подбежал ближе этого
+    smashDamage: 25,    // 40 → 25 (см. hp)
+    smashEvery: 1.4,
+  },
 };
 
 export const SHELTER = {
@@ -155,7 +176,7 @@ export const SHELTER = {
 // Волны. groups — кто, сколько, с каким интервалом и с какой секунды волны.
 // Замер 2026-11-09 (npm run sim, 40 забегов): 0t0w — поражение на волне 2; 1t1w — 0/40; 2t0w — 31/40;
 // 2t1w — 39/40 за ~3:24; trap (проволока под пушкой) — 0/40, пушка сломана копейщиками в 40/40.
-export const WAVES = {
+const WAVES_1 = {
   firstAt: 30,          // с на постройку до первой волны
   breakTime: 25,        // с между волнами
   list: [
@@ -174,9 +195,9 @@ export const WAVES = {
   ],
 };
 
-// Бот для замеров: ?bot=2t1w — сколько пушек (t) и проволок (w), по порядку мест из plans.
+// Бот уровня 1: ?bot=2t1w — сколько пушек (t) и проволок (w), места по порядку из order.
 // ?bot=trap — нарочно проволока под пушкой. ?speed=4 — ускорение.
-export const BOT = {
+const BOT_1 = {
   order: {
     tower: ['S2', 'S4', 'S1', 'S3'],
     wire: ['S1', 'S3', 'S4', 'S2'],
@@ -185,7 +206,86 @@ export const BOT = {
   plans: {
     trap: [{ kind: 'tower', slot: 'S2' }, { kind: 'wire', slot: 'S3' }, { kind: 'tower', slot: 'S4' }],
   },
-  guardOffset: 70,      // где бот висит в бою: чуть позади головного врага по дороге
+};
+
+// ---------- Уровень 2 «Окоп» (серия 3) ----------
+// Замер 2026-11-09 (40 забегов): 0t0w — поражение на волне 1–2; 3t1w (без окопов) — 0/40, берсерки ломают
+// все 3 пушки; 2t1w2e — 32/40, пушки берсерк не тронул ни разу, но проволоку рвёт в 40/40 (подвох:
+// окопал пушки — берсерк уходит на проволоку); 3t0w3e — 33/40; 3t1w3e — 30/40. Забег ~3:30.
+// Дорога змейкой от врат внизу справа к убежищу вверху слева. Мест под постройку пять.
+const MAP_2 = {
+  gate: { x: 1190, y: 560, r: 46 },
+  shelter: { x: 80, y: 220, w: 110, h: 90 },
+  truck: { x: 170, y: 330 },
+  heliStart: { x: 230, y: 380 },
+  road: [
+    [1190, 560],
+    [990, 560],
+    [910, 300],
+    [640, 300],
+    [560, 520],
+    [330, 520],
+    [250, 220],
+    [80, 220],
+  ],
+  roadWidth: 44,
+  slots: [
+    { id: 'S1', x: 1000, y: 440 },
+    { id: 'S2', x: 780, y: 245 },
+    { id: 'S3', x: 700, y: 355 },
+    { id: 'S4', x: 450, y: 465 },
+    { id: 'S5', x: 350, y: 380 },
+  ],
+  survivorSpots: [
+    [420, 120], [640, 150], [880, 140], [1100, 300], [1160, 420],
+    [820, 640], [560, 650], [300, 640], [120, 470], [480, 300],
+  ],
+};
+
+// Людей на уровне 2 появляется чаще: окопы тоже стоят людей (every 12 → 9)
+const SURVIVORS_2 = { every: 9 };
+
+const WAVES_2 = {
+  firstAt: 30,
+  breakTime: 25,
+  list: [
+    { groups: [
+      { type: 'goblin', count: 16, every: 1.2, at: 0 },
+      { type: 'spearman', count: 3, every: 4, at: 8 },
+      { type: 'berserker', count: 1, every: 1, at: 14 },
+    ] },
+    { groups: [
+      { type: 'goblin', count: 24, every: 0.9, at: 0 },
+      { type: 'spearman', count: 7, every: 2.6, at: 5 },
+      { type: 'berserker', count: 3, every: 6, at: 8 },
+    ] },
+    { groups: [
+      { type: 'goblin', count: 32, every: 0.7, at: 0 },
+      { type: 'spearman', count: 11, every: 2, at: 3 },
+      { type: 'berserker', count: 5, every: 5, at: 6 },
+    ] },
+  ],
+};
+
+// Бот уровня 2: ?bot=3t1w2e — 3 пушки, 1 проволока, 2 окопа (окопы — у пушек, по порядку постройки).
+const BOT_2 = {
+  order: {
+    tower: ['S3', 'S4', 'S2', 'S5', 'S1'],
+    wire: ['S1', 'S5', 'S2', 'S4', 'S3'],
+  },
+  sequence: ['tower', 'trench', 'tower', 'trench', 'wire', 'tower', 'trench', 'wire'],
+  plans: {},
+};
+
+// Уровни идут слева направо по побережью. builds — что можно строить на уровне.
+export const LEVELS = [
+  { id: 1, title: 'Серия 2 · Проволока', map: MAP_1, waves: WAVES_1, builds: ['tower', 'wire'], bot: BOT_1 },
+  { id: 2, title: 'Серия 3 · Окоп', map: MAP_2, waves: WAVES_2, survivors: SURVIVORS_2, builds: ['tower', 'wire', 'trench'], bot: BOT_2 },
+];
+
+// Общее для бота на всех уровнях
+export const BOT = {
+  guardOffset: 70,      // где бот висит в бою: чуть впереди головного врага по дороге
 };
 
 export const RUNS_KEY = 'wonsan67.runs';
@@ -195,6 +295,8 @@ export const DRAW = {
   slotRadius: 22,
   towerSize: 26,
   barrel: 22,
+  trenchRadius: 24,
+  trenchWidth: 8,
   heliLength: 60,
   heliWidth: 16,
   rotorRadius: 34,

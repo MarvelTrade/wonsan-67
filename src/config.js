@@ -35,6 +35,9 @@ export const COLORS = {
   axe: 0x9aa0a6,
   trench: 0x3b2f22,
   trenchEdge: 0x6b5638,
+  mine: 0x2a2a24,
+  mineLight: 0xe0452c,
+  blast: 0xffa13a,
   spear: 0xd8c08a,
   enemyHurt: 0xffffff,
   survivor: 0xffffff,
@@ -130,6 +133,13 @@ export const BUILD = {
   },
   trench: {             // окоп вокруг готовой пушки: к ней не подойдёт берсерк
     cost: 2,            // 3 → 2: при 3 бот не успевал окопать пушки до прихода берсерков, 0/30 у всех планов
+  },
+  mine: {               // мина на дороге: одноразовая, дешёвая
+    cost: 1,
+    trigger: 14,        // px вдоль дороги — наступил ближе этого, взрыв (первый же, кто пришёл)
+    radius: 75,         // радиус взрыва
+    damage: 110,        // врагам в радиусе (140 → 110: при 140 шесть мин давали 30/30 с полным убежищем)
+    buildingDamage: 70, // своим пушкам и проволоке в радиусе — мина не разбирает, чьё
   },
   menuRadius: 40,       // радиус нажатия по месту постройки
 };
@@ -277,10 +287,88 @@ const BOT_2 = {
   plans: {},
 };
 
+// ---------- Уровень 3 «Мины» (серия 4) ----------
+// Замер 2026-11-09 (40 забегов): 0t0w — поражение на волне 1; 3t1w3e (без мин) — 0/40; 3t1w3e4m — 26/40;
+// 3t1w3e6m — 37/40 за ~3:45; minetrap (мина под своей пушкой) — 0/40. Забег ~3:45.
+// Длинная дорога тремя петлями. Враги идут плотными пачками — мина бьёт по пачке.
+const MAP_3 = {
+  gate: { x: 1190, y: 140, r: 46 },
+  shelter: { x: 80, y: 360, w: 110, h: 90 },
+  truck: { x: 170, y: 470 },
+  heliStart: { x: 230, y: 460 },
+  road: [
+    [1190, 140],
+    [700, 140],
+    [620, 360],
+    [980, 360],
+    [900, 580],
+    [300, 580],
+    [220, 360],
+    [80, 360],
+  ],
+  roadWidth: 44,
+  slots: [
+    { id: 'S1', x: 1000, y: 85 },
+    { id: 'S2', x: 820, y: 415 },
+    { id: 'S3', x: 820, y: 305 },
+    { id: 'S4', x: 600, y: 525 },
+    { id: 'S5', x: 600, y: 635 },
+    { id: 'S6', x: 320, y: 470 },
+    { id: 'S7', x: 450, y: 635 },
+  ],
+  survivorSpots: [
+    [420, 120], [560, 260], [1100, 260], [1160, 460], [1080, 640],
+    [760, 640], [460, 420], [150, 620], [120, 200], [940, 230],
+  ],
+};
+
+const SURVIVORS_3 = { every: 9 };
+
+const WAVES_3 = {
+  firstAt: 30,
+  breakTime: 25,
+  // Пачки плотнее, чем на уровнях 1–2 (первая версия была проходима без мин: 3t1w3e — 30/30)
+  list: [
+    { groups: [
+      { type: 'goblin', count: 24, every: 0.4, at: 0 },
+      { type: 'spearman', count: 6, every: 0.7, at: 10 },
+    ] },
+    { groups: [
+      { type: 'goblin', count: 34, every: 0.35, at: 0 },
+      { type: 'spearman', count: 12, every: 0.6, at: 7 },
+      { type: 'berserker', count: 3, every: 2, at: 12 },
+    ] },
+    { groups: [
+      { type: 'goblin', count: 44, every: 0.3, at: 0 },
+      { type: 'spearman', count: 18, every: 0.5, at: 5 },
+      { type: 'berserker', count: 6, every: 1.6, at: 10 },
+    ] },
+  ],
+};
+
+// Бот уровня 3: m — сколько раз положить мину за забег (взорвалась — кладёт следующую, места из order.mine)
+const BOT_3 = {
+  order: {
+    tower: ['S3', 'S4', 'S6', 'S2', 'S5', 'S1'],
+    wire: ['S1', 'S2', 'S5'],
+    mine: ['S7'],         // S5 не берём: её точка на дороге под пушкой в S4
+  },
+  sequence: ['tower', 'trench', 'mine', 'tower', 'trench', 'wire', 'mine', 'tower', 'trench', 'mine', 'mine', 'mine', 'mine'],
+  plans: {
+    // нарочно мина под своей пушкой: место S2 через дорогу от пушки в S3
+    minetrap: [
+      { kind: 'tower', slot: 'S3' }, { kind: 'trench', slot: 'S3' }, { kind: 'mine', slot: 'S2' },
+      { kind: 'tower', slot: 'S4' }, { kind: 'trench', slot: 'S4' }, { kind: 'mine', slot: 'S2' },
+      { kind: 'tower', slot: 'S6' }, { kind: 'trench', slot: 'S6' }, { kind: 'mine', slot: 'S2' }, { kind: 'mine', slot: 'S2' },
+    ],
+  },
+};
+
 // Уровни идут слева направо по побережью. builds — что можно строить на уровне.
 export const LEVELS = [
   { id: 1, title: 'Серия 2 · Проволока', map: MAP_1, waves: WAVES_1, builds: ['tower', 'wire'], bot: BOT_1 },
   { id: 2, title: 'Серия 3 · Окоп', map: MAP_2, waves: WAVES_2, survivors: SURVIVORS_2, builds: ['tower', 'wire', 'trench'], bot: BOT_2 },
+  { id: 3, title: 'Серия 4 · Мины', map: MAP_3, waves: WAVES_3, survivors: SURVIVORS_3, builds: ['tower', 'wire', 'trench', 'mine'], bot: BOT_3 },
 ];
 
 // Общее для бота на всех уровнях
@@ -297,6 +385,7 @@ export const DRAW = {
   barrel: 22,
   trenchRadius: 24,
   trenchWidth: 8,
+  mineRadius: 7,
   heliLength: 60,
   heliWidth: 16,
   rotorRadius: 34,

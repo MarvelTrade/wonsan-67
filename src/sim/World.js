@@ -36,6 +36,7 @@ export class World {
     });
     this.towers = [];
     this.wires = [];
+    this.mines = [];
     this.enemies = [];
     this.shots = [];
     this.survivors = [];
@@ -48,10 +49,11 @@ export class World {
     this.stats = {
       plan, seed, level: this.level.id,
       saved: 0, lostSurvivors: 0,
-      spentTowers: 0, spentWire: 0, spentTrench: 0,
-      towersBuilt: 0, wiresBuilt: 0, trenchesBuilt: 0,
+      spentTowers: 0, spentWire: 0, spentTrench: 0, spentMines: 0,
+      towersBuilt: 0, wiresBuilt: 0, trenchesBuilt: 0, minesBuilt: 0,
+      minesTriggeredBy: {}, mineKills: 0,
       towersBroken: 0, brokenBy: {}, wiresBroken: 0, wiresBrokenBy: {},
-      kills: { goblin: 0, spearman: 0, berserker: 0 }, killsBy: { heli: 0, tower: 0 },
+      kills: { goblin: 0, spearman: 0, berserker: 0 }, killsBy: { heli: 0, tower: 0, mine: 0 },
       leaked: 0,
     };
   }
@@ -76,6 +78,12 @@ export class World {
       slot.building = { kind, ref: tower };
       this.stats.spentTowers += cfg.cost;
       this.stats.towersBuilt++;
+    } else if (kind === 'mine') {
+      const mine = { id: this.nextId++, slot: slot.id, d: slot.roadD, x: slot.roadX, y: slot.roadY, alive: true };
+      this.mines.push(mine);
+      slot.building = { kind, ref: mine };
+      this.stats.spentMines += cfg.cost;
+      this.stats.minesBuilt++;
     } else if (kind === 'trench') {
       slot.building.ref.trench = true;
       this.stats.spentTrench += cfg.cost;
@@ -104,6 +112,7 @@ export class World {
     this.updateHeli(dt);
     this.updateWires();
     this.updateEnemies(dt);
+    this.updateMines();
     this.updateTowers(dt);
     this.updateShots(dt);
     this.updateHeliGun(dt);
@@ -447,6 +456,41 @@ export class World {
     this.events.push({ type: 'towerBroken', slot: tower.slot, by });
   }
 
+  // ---------- Мины ----------
+  // Взрывается под первым, кто на дороге наступил ближе trigger. Бьёт всех в радиусе — и своих тоже.
+  updateMines() {
+    const cfg = BUILD.mine;
+    for (const m of this.mines) {
+      if (!m.alive) continue;
+      const by = this.enemies.find((e) => (e.state === 'road' || !e.state) && Math.abs(e.d - m.d) <= cfg.trigger);
+      if (by) this.explode(m, by.type);
+    }
+  }
+
+  explode(m, by) {
+    const cfg = BUILD.mine;
+    m.alive = false;
+    const slot = this.slots.find((s) => s.id === m.slot);
+    slot.building = null;
+    this.stats.minesTriggeredBy[by] = (this.stats.minesTriggeredBy[by] || 0) + 1;
+    this.events.push({ type: 'boom', x: m.x, y: m.y });
+    for (const e of [...this.enemies]) {
+      if (Math.hypot(e.x - m.x, e.y - m.y) <= cfg.radius) this.hit(e, cfg.damage, 'mine');
+    }
+    for (const t of this.towers) {
+      if (!t.alive || Math.hypot(t.x - m.x, t.y - m.y) > cfg.radius) continue;
+      t.hp -= cfg.buildingDamage;
+      if (t.hp <= 0) this.breakTower(t, 'mine');
+    }
+    for (const w of this.wires) {
+      if (!w.alive) continue;
+      const c = this.path.at((w.d0 + w.d1) / 2);
+      if (Math.hypot(c.x - m.x, c.y - m.y) > cfg.radius) continue;
+      w.hp -= cfg.buildingDamage;
+      w.lastBy = 'mine';
+    }
+  }
+
   // ---------- Пушки ----------
   updateTowers(dt) {
     const cfg = BUILD.tower;
@@ -513,10 +557,13 @@ export class World {
       spentTowers: s.spentTowers,
       spentWire: s.spentWire,
       spentTrench: s.spentTrench,
+      spentMines: s.spentMines,
       peopleLeft: this.people,
       towersBuilt: s.towersBuilt,
       wiresBuilt: s.wiresBuilt,
       trenchesBuilt: s.trenchesBuilt,
+      minesBuilt: s.minesBuilt,
+      minesTriggeredBy: s.minesTriggeredBy,
       towersBroken: s.towersBroken,
       brokenBy: s.brokenBy,
       wiresBroken: s.wiresBroken,

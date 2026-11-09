@@ -10,10 +10,12 @@ export const T = {
   hintStart: 'Веди вертолёт пальцем. Забирай людей и вези к грузовику. Нажми на круг — построить.',
   hints: {
     2: 'Орки-берсерки рубят пушки. Нажми на готовую пушку — окопай её.',
+    3: 'Мина ложится на дорогу и рвётся под первым, кто наступит. Взрыв бьёт и своих.',
   },
   tower: (cost) => `Пушка · ${cost}`,
   wire: (cost) => `Проволока · ${cost}`,
   trench: (cost) => `Окоп · ${cost}`,
+  mine: (cost) => `Мина · ${cost}`,
   next: 'Дальше',
   win: 'Убежище устояло',
   lose: 'Убежище пало',
@@ -22,8 +24,9 @@ export const T = {
   summary: (r) => [
     `Волна: ${r.wave}   Время: ${Math.floor(r.duration / 60)}:${String(r.duration % 60).padStart(2, '0')}`,
     `Спасено: ${r.saved}   Пропало: ${r.lostSurvivors}`,
-    `Потрачено: пушки ${r.spentTowers}, проволока ${r.spentWire}${r.trenchesBuilt ? `, окопы ${r.spentTrench}` : ''}   Осталось людей: ${r.peopleLeft}`,
-    `Пушек сломано: ${r.towersBroken}${r.towersBroken ? ` (копейщики: ${r.brokenBy.spearman || 0}, берсерки: ${r.brokenBy.berserker || 0})` : ''}   Проволоки порвано: ${r.wiresBroken}${r.wiresBrokenBy.berserker ? ` (берсерки: ${r.wiresBrokenBy.berserker})` : ''}`,
+    `Потрачено: пушки ${r.spentTowers}, проволока ${r.spentWire}${r.trenchesBuilt ? `, окопы ${r.spentTrench}` : ''}${r.minesBuilt ? `, мины ${r.spentMines}` : ''}   Осталось людей: ${r.peopleLeft}`,
+    `Пушек сломано: ${r.towersBroken}${r.towersBroken ? ` (копейщики: ${r.brokenBy.spearman || 0}, берсерки: ${r.brokenBy.berserker || 0}${r.brokenBy.mine ? `, свои мины: ${r.brokenBy.mine}` : ''})` : ''}   Проволоки порвано: ${r.wiresBroken}${r.wiresBrokenBy.berserker ? ` (берсерки: ${r.wiresBrokenBy.berserker})` : ''}`,
+    ...(r.minesBuilt ? [`Мин взорвано: ${Object.values(r.minesTriggeredBy || {}).reduce((a, b) => a + b, 0)} из ${r.minesBuilt} (под гоблинами: ${(r.minesTriggeredBy || {}).goblin || 0})   Убито минами: ${r.killsBy.mine || 0}`] : []),
     `Убито: гоблины ${r.kills.goblin}, копейщики ${r.kills.spearman}${r.kills.berserker ? `, берсерки ${r.kills.berserker}` : ''}   Прорвалось: ${r.leaked}`,
   ],
 };

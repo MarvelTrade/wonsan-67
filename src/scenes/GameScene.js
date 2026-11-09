@@ -152,7 +152,10 @@ export class GameScene extends Phaser.Scene {
         const s = this.world.slots.find((sl) => sl.id === e.slot);
         this.fx.push({ kind: 'broken', x: s.x, y: s.y, t: DRAW.fxTime * 3 });
       } else if (e.type === 'drop') this.fx.push({ kind: 'drop', x: this.map.truck.x, y: this.map.truck.y, t: DRAW.fxTime * 2 });
-      else if (e.type === 'smash') this.fx.push({ kind: 'smash', x: e.x, y: e.y, t: DRAW.fxTime });
+      else if (e.type === 'boom') {
+        this.fx.push({ kind: 'boom', x: e.x, y: e.y, t: DRAW.fxTime * 2 });
+        this.cameras.main.shake(150, 0.006);
+      } else if (e.type === 'smash') this.fx.push({ kind: 'smash', x: e.x, y: e.y, t: DRAW.fxTime });
       else if (e.type === 'leak') this.cameras.main.shake(120, 0.004);
     }
     this.world.events.length = 0;
@@ -215,6 +218,14 @@ export class GameScene extends Phaser.Scene {
       g.lineBetween(a.x - ox, a.y - oy, b.x - ox, b.y - oy);
       g.lineBetween(a.x + ox, a.y + oy, b.x + ox, b.y + oy);
       this.hpBar(g, (a.x + b.x) / 2, (a.y + b.y) / 2 - DRAW.wireWidth / 2 - 6, wire.hp / wire.maxHp);
+    }
+
+    // Мины: тёмный кругляш на дороге, огонёк мигает
+    for (const m of w.mines) {
+      if (!m.alive) continue;
+      g.fillStyle(COLORS.mine).fillCircle(m.x, m.y, DRAW.mineRadius);
+      g.lineStyle(1, COLORS.mineLight, 0.5).strokeCircle(m.x, m.y, BUILD.mine.radius);
+      if (Math.sin(w.t * 6) > 0) g.fillStyle(COLORS.mineLight).fillCircle(m.x, m.y, DRAW.mineRadius * 0.35);
     }
 
     // Места под постройку
@@ -308,7 +319,10 @@ export class GameScene extends Phaser.Scene {
       if (fx.kind === 'kill') f.fillStyle(fx.color, 0.6 * k).fillCircle(fx.x, fx.y, 14 * (1.5 - k));
       else if (fx.kind === 'stab') f.lineStyle(3, 0xff5a3a, k).strokeCircle(fx.x, fx.y, DRAW.towerSize * (1.2 - 0.4 * k));
       else if (fx.kind === 'broken') f.lineStyle(4, 0xff3a2a, Math.min(1, k)).strokeCircle(fx.x, fx.y, DRAW.towerSize * 1.5);
-      else if (fx.kind === 'smash') f.lineStyle(4, COLORS.berserker, k).strokeCircle(fx.x, fx.y, DRAW.towerSize * (1.4 - 0.5 * k));
+      else if (fx.kind === 'boom') {
+        f.fillStyle(COLORS.blast, 0.55 * Math.min(1, k)).fillCircle(fx.x, fx.y, BUILD.mine.radius * (1.1 - 0.4 * Math.min(1, k / 2)));
+        f.lineStyle(3, COLORS.mineLight, Math.min(1, k)).strokeCircle(fx.x, fx.y, BUILD.mine.radius);
+      } else if (fx.kind === 'smash') f.lineStyle(4, COLORS.berserker, k).strokeCircle(fx.x, fx.y, DRAW.towerSize * (1.4 - 0.5 * k));
       else if (fx.kind === 'drop') f.lineStyle(3, COLORS.truck, Math.min(1, k)).strokeCircle(fx.x, fx.y, HELI.dropRadius * (1.4 - 0.2 * k));
     }
     this.fx = this.fx.filter((fx) => fx.t > 0);

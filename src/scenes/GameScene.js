@@ -44,6 +44,20 @@ export class GameScene extends Phaser.Scene {
     this.hudPeople = this.add.text(pad, pad + DRAW.fontSize * 1.3, '', style);
     this.hudBoard = this.add.text(pad, pad + DRAW.fontSize * 2.6, '', style);
     this.hudShelter = this.add.text(VIEW.width - pad, pad, '', style).setOrigin(1, 0);
+    // Пауза: кнопка под «Убежищем»; сама включается, когда вкладка уходит в фон (звонок, свернули)
+    this.paused = false;
+    this.pauseUi = null;
+    if (!BOT_PLAN) {
+      const pauseBtn = this.add.text(VIEW.width - pad, pad + DRAW.fontSize * 1.6, T.pauseIcon, {
+        ...style, color: '#101410', backgroundColor: '#cfd3c8', padding: { x: 16, y: 6 },
+      }).setOrigin(1, 0).setDepth(16).setInteractive({ useHandCursor: true });
+      pauseBtn.on('pointerdown', () => this.setPaused(!this.paused));
+      const onHidden = () => document.hidden && this.setPaused(true);
+      document.addEventListener('visibilitychange', onHidden);
+      this.events.once('shutdown', () => document.removeEventListener('visibilitychange', onHidden));
+      this.input.keyboard.on('keydown-ESC', () => this.setPaused(!this.paused));
+      this.input.keyboard.on('keydown-P', () => this.setPaused(!this.paused));
+    }
     this.add.text(VIEW.width / 2, pad, this.world.level.title, { ...style, color: COLORS.textDim }).setOrigin(0.5, 0);
     this.hudBot = this.add.text(VIEW.width - pad, VIEW.height - pad, BOT_PLAN ? T.bot(BOT_PLAN, SPEED) : '', {
       ...style, color: COLORS.textDim, fontSize: `${DRAW.fontSize * 0.7}px`,
@@ -78,8 +92,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------- Ввод ----------
-  onDown(p) {
-    if (this.world.over) return;
+  onDown(p, over) {
+    // Нажали на кнопку (пауза, итоги) — это не команда вертолёту
+    if (this.world.over || this.paused || over?.length) return;
     const x = p.worldX;
     const y = p.worldY;
     if (this.menu) {
@@ -130,8 +145,39 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------- Цикл ----------
+  setPaused(on) {
+    if (this.world.over || on === this.paused) return;
+    this.paused = on;
+    this.world.heli.target = null;
+    this.dragging = false;
+    if (!on) {
+      this.pauseUi?.forEach((o) => o.destroy());
+      this.pauseUi = null;
+      return;
+    }
+    this.closeMenu();
+    const cx = VIEW.width / 2;
+    const cy = VIEW.height / 2;
+    const dim = this.add.rectangle(cx, cy, VIEW.width, VIEW.height, 0x000000, 0.55).setDepth(18).setInteractive();
+    const title = this.add.text(cx, cy - 80, T.paused, {
+      fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultTitle}px`, color: COLORS.text,
+    }).setOrigin(0.5).setDepth(19);
+    const button = (x, label, bg, fn) => {
+      const b = this.add.text(x, cy + 30, label, {
+        fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultButton}px`, color: '#101410', backgroundColor: bg,
+        padding: { x: 28, y: 10 },
+      }).setOrigin(0.5).setDepth(19).setInteractive({ useHandCursor: true });
+      b.on('pointerdown', fn);
+      return b;
+    };
+    const resume = button(cx - 130, T.resume, '#ffe066', () => this.setPaused(false));
+    const map = button(cx + 130, T.toMap, '#cfd3c8', () => this.scene.start('map'));
+    this.pauseUi = [dim, title, resume, map];
+  }
+
   update(_time, delta) {
     const w = this.world;
+    if (this.paused) return;
     if (!this.bot && this.keys) {
       const k = this.keys;
       const dx = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);

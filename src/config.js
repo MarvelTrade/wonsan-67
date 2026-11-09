@@ -377,6 +377,19 @@ export const BOT = {
 };
 
 export const RUNS_KEY = 'wonsan67.runs';
+export const PROGRESS_KEY = 'wonsan67.progress';
+
+// Экран карты: серии вдоль побережья слева направо (только картинка)
+export const WORLD_MAP = {
+  coastY: 470,          // линия берега; ниже — море
+  marginX: 220,         // отступ первой и последней серии от краёв
+  nodeY: [360, 300, 380], // высота кружка каждой серии над берегом (по порядку)
+  nodeRadius: 46,
+  roadDash: 14,
+  titleSize: 64,
+  nodeFont: 34,
+  labelFont: 20,
+};
 
 // Размеры отрисовки (только картинка, на правила не влияют)
 export const DRAW = {

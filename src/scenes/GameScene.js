@@ -6,6 +6,7 @@ import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
 import { saveRun } from '../telemetry.js';
+import { markWin } from '../progress.js';
 
 const params = new URLSearchParams(location.search);
 const BOT_PLAN = params.get('bot');
@@ -383,6 +384,7 @@ export class GameScene extends Phaser.Scene {
     const r = w.summary();
     if (!this.saved) {
       saveRun(r);
+      if (w.over === 'win' && !this.bot) markWin(this.levelId); // бот прогресс не открывает
       this.saved = true;
     }
     this.closeMenu();
@@ -402,10 +404,17 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
     const next = LEVELS.find((l) => l.id === this.levelId + 1);
     const canNext = w.over === 'win' && next && !this.bot;
-    btn.setX(canNext ? cx - 110 : cx);
+    btn.setX(cx - (canNext ? 200 : 100));
+    if (!this.bot) {
+      const mapBtn = this.add.text(canNext ? cx : cx + 100, cy + 135, T.toMap, {
+        fontFamily: 'Arial, sans-serif', fontSize: '28px', color: '#101410', backgroundColor: '#cfd3c8',
+        padding: { x: 28, y: 10 },
+      }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
+      mapBtn.on('pointerdown', () => this.scene.start('map'));
+    } else btn.setX(cx);
     btn.on('pointerdown', () => this.scene.restart({ level: this.levelId }));
     if (canNext) {
-      const nextBtn = this.add.text(cx + 110, cy + 135, T.next, {
+      const nextBtn = this.add.text(cx + 200, cy + 135, T.next, {
         fontFamily: 'Arial, sans-serif', fontSize: '28px', color: '#101410', backgroundColor: '#9be37a',
         padding: { x: 28, y: 10 },
       }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });

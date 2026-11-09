@@ -1,6 +1,12 @@
 // Все тексты интерфейса — здесь
 export const T = {
   title: 'ВОНСАН-67',
+  mapSubtitle: '1967 · восточное побережье · выбери серию',
+  locked: '✕',
+  mapWon: 'пройдена',
+  mapOpen: 'открыта',
+  mapLocked: 'закрыта',
+  toMap: 'Карта',
   wave: (n, total) => `Волна ${n}/${total}`,
   waveIn: (s) => `через ${s} с`,
   waveOn: 'идёт',

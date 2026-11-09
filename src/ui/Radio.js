@@ -17,17 +17,18 @@ export class Radio {
     bg.fillStyle(COLORS.panel, RADIO.alpha).fillRoundedRect(0, 0, W, H, 10);
     bg.lineStyle(2, 0x6b7a5a, 0.8).strokeRoundedRect(0, 0, W, H, 10);
     this.portrait = scene.add.graphics();
+    this.art = scene.add.image(RADIO.pad, RADIO.pad, '__DEFAULT').setOrigin(0).setVisible(false);
     const textX = RADIO.pad * 2 + RADIO.portrait;
     this.name = scene.add.text(textX, RADIO.pad + 2, '', {
       fontFamily: 'Arial, sans-serif', fontSize: `${RADIO.nameSize}px`, fontStyle: 'bold',
     });
     this.line = scene.add.text(textX, RADIO.pad + RADIO.nameSize + 8, '', {
       fontFamily: 'Arial, sans-serif', fontSize: `${RADIO.textSize}px`, color: COLORS.text,
-      wordWrap: { width: W - textX - RADIO.pad * 2 }, lineSpacing: 2,
+      wordWrap: { width: W - textX - RADIO.pad * 2 - RADIO.noiseSpace }, lineSpacing: 2,
     });
     // «Помехи» — короткие штрихи справа, мигают, пока идёт реплика
     this.noise = scene.add.graphics();
-    this.box.add([bg, this.portrait, this.name, this.line, this.noise]);
+    this.box.add([bg, this.portrait, this.art, this.name, this.line, this.noise]);
   }
 
   // Поставить реплику в очередь (если есть и ещё не звучала)
@@ -80,7 +81,13 @@ export class Radio {
     this.current = { key, t: 0 };
     this.name.setText(T.speakers[who]).setColor(sp.name);
     this.line.setText(text);
-    this.drawPortrait(sp);
+    const tex = `portrait_${who}`;
+    const hasArt = this.scene.textures.exists(tex);
+    this.art.setVisible(hasArt);
+    if (hasArt) {
+      this.art.setTexture(tex).setDisplaySize(RADIO.portrait, RADIO.portrait);
+      this.portrait.clear();
+    } else this.drawPortrait(sp);
   }
 
   // Портрет-заглушка из примитивов: плечи, голова, волосы, гарнитура / очки / крест

@@ -1,6 +1,6 @@
 // Карта серий: побережье, серии слева направо. Пройденная открывает следующую.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, LEVELS, WORLD_MAP as M } from '../config.js';
+import { VIEW, COLORS, LEVELS, SPEAKERS, WORLD_MAP as M } from '../config.js';
 import { T } from '../texts.js';
 import { loadProgress, unlockedCount } from '../progress.js';
 import { copyStats, statsText } from '../ui/copyStats.js';
@@ -10,6 +10,11 @@ let booted = false;
 export class MapScene extends Phaser.Scene {
   constructor() {
     super('map');
+  }
+
+  // Портреты для радио грузим здесь: карта — первая сцена при любом запуске
+  preload() {
+    for (const [who, sp] of Object.entries(SPEAKERS)) if (sp.art) this.load.image(`portrait_${who}`, sp.art);
   }
 
   create() {

@@ -386,16 +386,18 @@ export const RADIO = {
   height: 116,
   portrait: 98,         // сторона квадрата с портретом
   pad: 8,
+  noiseSpace: 40,       // px справа под «помехи», текст туда не заходит
   alpha: 0.78,          // фон полупрозрачный: на уровне 3 под плашкой проходит дорога
   slide: 0.2,           // с — выезд и уезд
   nameSize: 20,
   textSize: 26,         // 20 → 26, см. DRAW.fontSize
 };
 
-// Говорящие: цвета портретов-заглушек (позже — арт из библии образов)
+// Говорящие. art — портрет из public/ (вырезан из обложки 1967 года); нет арта или не загрузился —
+// заглушка из примитивов по цветам ниже
 export const SPEAKERS = {
-  sergeant: { bg: 0x3c4a2c, skin: 0xd9b48f, hair: 0x231c16, name: '#c8d48a', headset: true },
-  medic: { bg: 0x4a3434, skin: 0xe2bf9c, hair: 0x2a1d17, name: '#f0a8a0', headset: true, cross: true, longHair: true },
+  sergeant: { art: 'portraits/sergeant.png', bg: 0x3c4a2c, skin: 0xd9b48f, hair: 0x231c16, name: '#c8d48a', headset: true },
+  medic: { art: 'portraits/medic.png', bg: 0x4a3434, skin: 0xe2bf9c, hair: 0x2a1d17, name: '#f0a8a0', headset: true, cross: true, longHair: true },
   institute: { bg: 0x2c3a4a, skin: 0xcfae8c, hair: 0x6b6a66, name: '#9ec3e6', glasses: true },
 };
 

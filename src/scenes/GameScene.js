@@ -8,6 +8,7 @@ import { T } from '../texts.js';
 import { saveRun } from '../telemetry.js';
 import { markWin } from '../progress.js';
 import { Radio } from '../ui/Radio.js';
+import { copyStats, statsText } from '../ui/copyStats.js';
 
 const params = new URLSearchParams(location.search);
 const BOT_PLAN = params.get('bot');
@@ -444,6 +445,14 @@ export class GameScene extends Phaser.Scene {
         padding: { x: 28, y: 10 },
       }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
       nextBtn.on('pointerdown', () => this.scene.restart({ level: next.id }));
+    }
+    if (!this.bot) {
+      const n = JSON.parse(statsText()).runs.length;
+      const copyBtn = this.add.text(cx, cy + 215, T.copyStats(n), {
+        fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#101410', backgroundColor: '#cfd3c8',
+        padding: { x: 14, y: 6 },
+      }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
+      copyBtn.on('pointerdown', async () => copyBtn.setText((await copyStats()) ? T.copied : T.copyFailed));
     }
     this.result = { panel, title, body, btn };
 

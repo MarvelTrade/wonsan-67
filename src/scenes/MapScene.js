@@ -3,6 +3,7 @@ import * as Phaser from 'phaser';
 import { VIEW, COLORS, LEVELS, WORLD_MAP as M } from '../config.js';
 import { T } from '../texts.js';
 import { loadProgress, unlockedCount } from '../progress.js';
+import { copyStats, statsText } from '../ui/copyStats.js';
 
 let booted = false;
 
@@ -73,5 +74,14 @@ export class MapScene extends Phaser.Scene {
       const hit = this.add.zone(x, y, M.nodeRadius * 2.4, M.nodeRadius * 2.4).setInteractive({ useHandCursor: true });
       hit.on('pointerdown', () => this.scene.start('game', { level: level.id }));
     }
+
+    // Статистика забегов — для плейтеста с телефона
+    const runs = JSON.parse(statsText()).runs.length;
+    const copyBtn = text(VIEW.width - 230, VIEW.height - 60, T.copyStats(runs), M.labelFont, '#101410')
+      .setBackgroundColor('#cfd3c8').setPadding(14, 8).setInteractive({ useHandCursor: true });
+    copyBtn.on('pointerdown', async () => {
+      const ok = await copyStats();
+      copyBtn.setText(ok ? T.copied : T.copyFailed);
+    });
   }
 }

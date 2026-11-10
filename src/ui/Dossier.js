@@ -2,6 +2,7 @@
 // текст на машинке справа, кнопка «Принято». Пока карточка открыта, сцена держит игру на паузе.
 import { VIEW, COLORS, DOSSIER as D, ENEMIES, BUILD, ABILITIES } from '../config.js';
 import { T } from '../texts.js';
+import { makeButton } from './button.js';
 
 export class Dossier {
   // entry: { kind: 'enemy' | 'build', id } ; onClose — когда нажали «Принято»
@@ -35,7 +36,7 @@ export class Dossier {
     g.lineStyle(3, COLORS.stamp, 0.85).strokeRect(sx, sy, 110, 40);
 
     const type = (s, size, color = COLORS.ink, extra = {}) =>
-      scene.add.text(0, 0, s, { fontFamily: '"Courier New", Courier, monospace', fontSize: `${size}px`, color, ...extra });
+      scene.add.text(0, 0, s, { fontFamily: '"Courier New", Courier, monospace', fontSize: `${size}px`, fontStyle: 'bold', color, ...extra });
     add(type(T.dossier.header, D.small).setPosition(x0 + D.pad, y0 + 22));
     const heading = { enemy: T.dossier.newEnemy, build: T.dossier.newBuild, ability: T.dossier.newAbility }[entry.kind];
     add(type(heading, D.small, COLORS.inkRed, { fontStyle: 'bold' })
@@ -49,14 +50,12 @@ export class Dossier {
     add(type(info.traits.map((t) => `— ${t}`).join('\n'), D.body, COLORS.inkRed, { lineSpacing: 4 })
       .setOrigin(0, 1).setPosition(tx, py + D.picture));
 
-    const ok = add(scene.add.text(x0 + D.width - D.pad, y0 + D.height - D.pad, T.dossier.ok, {
-      fontFamily: 'Arial, sans-serif', fontSize: `${D.button}px`, color: '#f4f0e4', backgroundColor: '#4a5a34',
-      padding: { x: 30, y: 10 },
-    }).setOrigin(1, 1).setInteractive({ useHandCursor: true }));
-    ok.on('pointerdown', () => {
+    const ok = makeButton(scene, 0, 0, T.dossier.ok, 'dark', () => {
       objs.forEach((o) => o.destroy());
       onClose();
-    });
+    }, { size: D.button, depth: 31 });
+    ok.setPosition(x0 + D.width - D.pad - ok.width / 2, y0 + D.height - D.pad - ok.height / 2);
+    objs.push(ok);
   }
 
   // Рисунок в рамке — те же примитивы, что в игре, только крупнее

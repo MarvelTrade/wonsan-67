@@ -61,6 +61,7 @@ export const COLORS = {
   paper: 0xe9dfc4,      // досье
   paperEdge: 0x9c8c66,
   stamp: 0xa8322a,
+  stampOk: 0x3f6a2a,
   ink: '#1e1c16',
   inkRed: '#9a2a22',
 };
@@ -568,6 +569,22 @@ export const UNITS = {
   rotor: 0xd8e0d0,
 };
 
+// Кнопки интерфейса (src/ui/button.js)
+export const BUTTON = {
+  font: 28,
+  padX: 26,
+  padY: 10,
+  minW: 150,
+  radius: 10,
+  kinds: {
+    primary: { fill: 0xffd85a, edge: 0xa88a2a, text: '#1e1c16' },
+    ok: { fill: 0x9bd36e, edge: 0x5a8a3a, text: '#1e1c16' },
+    plain: { fill: 0xd8d4c4, edge: 0x8a8676, text: '#1e1c16' },
+    dark: { fill: 0x5a6a3c, edge: 0x34401f, text: '#f4f0e4' },
+    gate: { fill: 0xd9b3ff, edge: 0x7a4ab0, text: '#1e1c16' },
+  },
+};
+
 // Размеры отрисовки (только картинка, на правила не влияют)
 export const DRAW = {
   slotRadius: 22,
@@ -598,8 +615,9 @@ export const DRAW = {
   resultW: 1060,
   resultH: 560,
   resultStar: 26,
+  resultSmall: 20,
   mapStar: 14,
-  resultBody: 24,
+  resultBody: 24,       // машинопись в отчёте: на телефоне лёжа ~12 px, поэтому жирная
   resultButton: 30,
   hudPad: 14,
   hudAlpha: 0.55,       // подложка HUD

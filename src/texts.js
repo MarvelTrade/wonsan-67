@@ -9,6 +9,7 @@ export const T = {
   mapOpen: 'открыта',
   mapLocked: 'закрыта',
   toMap: 'Карта',
+  report: { header: 'СЕКТОР 67 · ОТЧЁТ О ЗАДАНИИ', done: 'ВЫПОЛНЕНО', failed: 'ПРОВАЛЕНО' },
   pauseIcon: 'II',
   paused: 'Пауза',
   resume: 'Продолжить',

@@ -5,6 +5,7 @@ import { T } from '../texts.js';
 import { loadProgress, unlockedCount } from '../progress.js';
 import { copyStats, statsText } from '../ui/copyStats.js';
 import { drawStars } from '../ui/stars.js';
+import { makeButton } from '../ui/button.js';
 
 let booted = false;
 
@@ -97,11 +98,9 @@ export class MapScene extends Phaser.Scene {
 
     // Статистика забегов — для плейтеста с телефона
     const runs = JSON.parse(statsText()).runs.length;
-    const copyBtn = text(VIEW.width - 230, art ? 36 : VIEW.height - 60, T.copyStats(runs), M.labelFont * 0.8, '#101410')
-      .setBackgroundColor('#cfd3c8').setPadding(14, 8).setInteractive({ useHandCursor: true });
-    copyBtn.on('pointerdown', async () => {
-      const ok = await copyStats();
-      copyBtn.setText(ok ? T.copied : T.copyFailed);
-    });
+    const copyBtn = makeButton(this, VIEW.width - 200, art ? 40 : VIEW.height - 60, T.copyStats(runs), 'dark', async () => {
+      copyBtn.label.setText((await copyStats()) ? T.copied : T.copyFailed);
+    }, { size: M.labelFont * 0.75, padY: 6 });
+    copyBtn.setX(VIEW.width - 16 - copyBtn.width / 2); // прижать к правому краю по ширине надписи
   }
 }

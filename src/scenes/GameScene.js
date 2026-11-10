@@ -14,6 +14,7 @@ import { drawGoblin, drawSpearman, drawBerserker, drawSurvivor, drawSoldier, dra
 import { Radio } from '../ui/Radio.js';
 import { copyStats, statsText } from '../ui/copyStats.js';
 import { drawStars } from '../ui/stars.js';
+import { makeButton } from '../ui/button.js';
 
 const params = new URLSearchParams(location.search);
 // «+» в адресе браузер превращает в пробел: ?bot=2t1w+a приходит как «2t1w a»
@@ -296,16 +297,8 @@ export class GameScene extends Phaser.Scene {
     const title = this.add.text(cx, cy - 80, T.paused, {
       fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultTitle}px`, color: COLORS.text,
     }).setOrigin(0.5).setDepth(19);
-    const button = (x, label, bg, fn) => {
-      const b = this.add.text(x, cy + 30, label, {
-        fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultButton}px`, color: '#101410', backgroundColor: bg,
-        padding: { x: 28, y: 10 },
-      }).setOrigin(0.5).setDepth(19).setInteractive({ useHandCursor: true });
-      b.on('pointerdown', fn);
-      return b;
-    };
-    const resume = button(cx - 130, T.resume, '#ffe066', () => this.setPaused(false));
-    const map = button(cx + 130, T.toMap, '#cfd3c8', () => this.scene.start('map'));
+    const resume = makeButton(this, cx - 130, cy + 30, T.resume, 'primary', () => this.setPaused(false), { depth: 19 });
+    const map = makeButton(this, cx + 130, cy + 30, T.toMap, 'plain', () => this.scene.start('map'), { depth: 19 });
     this.pauseUi = [dim, title, resume, map];
   }
 
@@ -592,50 +585,48 @@ export class GameScene extends Phaser.Scene {
     this.radio.stop();
     const cx = VIEW.width / 2;
     const cy = VIEW.height / 2;
+    const W = DRAW.resultW;
+    const H = DRAW.resultH;
+    const x0 = cx - W / 2;
+    const y0 = cy - H / 2;
+    const win = w.over === 'win';
+    // Отчёт о задании: лист бумаги поверх затемнённой карты
+    this.add.rectangle(cx, cy, VIEW.width, VIEW.height, 0x000000, 0.45).setDepth(19).setInteractive();
     const panel = this.add.graphics().setDepth(20);
-    panel.fillStyle(COLORS.panel, 0.88).fillRoundedRect(cx - DRAW.resultW / 2, cy - DRAW.resultH / 2, DRAW.resultW, DRAW.resultH, 12);
-    const title = this.add.text(cx, cy - DRAW.resultH / 2 + 44, w.over === 'win' ? T.win : T.lose, {
-      fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultTitle}px`, color: w.over === 'win' ? '#9be37a' : '#ff8a6a',
-    }).setOrigin(0.5).setDepth(21);
-    // Звёзды (у поражения — пустые)
-    drawStars(panel, cx, cy - DRAW.resultH / 2 + 100, DRAW.resultStar, r.stars);
-    // Последняя реплика по радио — цитатой под звёздами
+    panel.fillStyle(0x000000, 0.35).fillRect(x0 + 8, y0 + 10, W, H);
+    panel.fillStyle(COLORS.paper).fillRect(x0, y0, W, H);
+    panel.lineStyle(2, COLORS.paperEdge).strokeRect(x0, y0, W, H);
+    panel.lineStyle(1, COLORS.paperEdge, 0.5).lineBetween(x0 + 24, y0 + 58, x0 + W - 24, y0 + 58);
+    const type = (x, y, s, size, color = COLORS.ink, extra = {}) =>
+      this.add.text(x, y, s, { fontFamily: '"Courier New", Courier, monospace', fontSize: `${size}px`, color, ...extra }).setDepth(21);
+    type(x0 + 28, y0 + 20, `${T.report.header} · ${this.world.level.title}`, DRAW.resultSmall);
+    // штамп
+    const stampColor = win ? COLORS.stampOk : COLORS.stamp;
+    panel.lineStyle(4, stampColor, 0.85).strokeRect(x0 + W - 250, y0 + 74, 210, 54);
+    type(x0 + W - 145, y0 + 101, win ? T.report.done : T.report.failed, DRAW.resultBody + 4, win ? '#3f6a2a' : '#a8322a', { fontStyle: 'bold' })
+      .setOrigin(0.5).setRotation(-0.08);
+    const title = type(x0 + 28, y0 + 74, win ? T.win : T.lose, DRAW.resultTitle - 4, COLORS.ink, { fontStyle: 'bold' });
+    drawStars(panel, x0 + 28 + DRAW.resultStar + 4, y0 + 150, DRAW.resultStar, r.stars);
+    // последняя реплика по радио — цитатой
     const [who, quote] = T.radio[w.over];
-    this.add.text(cx, cy - DRAW.resultH / 2 + 146, `«${quote}» — ${T.speakers[who]}`, {
-      fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultBody * 0.85}px`, fontStyle: 'italic', color: COLORS.textDim,
-    }).setOrigin(0.5).setDepth(21);
-    const body = this.add.text(cx, cy + 34, T.summary(r).join('\n'), {
-      fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultBody}px`, color: COLORS.text, align: 'center', lineSpacing: 8,
-    }).setOrigin(0.5).setDepth(21);
-    const btn = this.add.text(cx, cy + DRAW.resultH / 2 - 52, T.again, {
-      fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultButton}px`, color: '#101410', backgroundColor: '#ffe066',
-      padding: { x: 28, y: 10 },
-    }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
+    type(x0 + 28 + DRAW.resultStar * 7, y0 + 140, `«${quote}» — ${T.speakers[who]}`, DRAW.resultSmall, COLORS.inkRed, {
+      fontStyle: 'italic', wordWrap: { width: W - DRAW.resultStar * 7 - 70 },
+    });
+    const body = type(x0 + 28, y0 + 196, T.summary(r).join('\n'), DRAW.resultBody, COLORS.ink, {
+      lineSpacing: 6, fontStyle: 'bold', wordWrap: { width: W - 56 },
+    });
+    // кнопки
+    const by = y0 + H - 46;
     const next = LEVELS.find((l) => l.id === this.levelId + 1);
-    const canNext = w.over === 'win' && next && !this.bot;
-    btn.setX(cx - (canNext ? 250 : 125));
-    if (!this.bot) {
-      const mapBtn = this.add.text(canNext ? cx : cx + 125, cy + DRAW.resultH / 2 - 52, T.toMap, {
-        fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultButton}px`, color: '#101410', backgroundColor: '#cfd3c8',
-        padding: { x: 28, y: 10 },
-      }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
-      mapBtn.on('pointerdown', () => this.scene.start('map'));
-    } else btn.setX(cx);
-    btn.on('pointerdown', () => this.scene.restart({ level: this.levelId }));
-    if (canNext) {
-      const nextBtn = this.add.text(cx + 250, cy + DRAW.resultH / 2 - 52, T.next, {
-        fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultButton}px`, color: '#101410', backgroundColor: '#9be37a',
-        padding: { x: 28, y: 10 },
-      }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
-      nextBtn.on('pointerdown', () => this.scene.restart({ level: next.id }));
-    }
+    const canNext = win && next && !this.bot;
+    const btn = makeButton(this, this.bot ? cx : cx - (canNext ? 250 : 125), by, T.again, 'primary', () => this.scene.restart({ level: this.levelId }));
+    if (!this.bot) makeButton(this, canNext ? cx : cx + 125, by, T.toMap, 'plain', () => this.scene.start('map'));
+    if (canNext) makeButton(this, cx + 250, by, T.next, 'ok', () => this.scene.restart({ level: next.id }));
     if (!this.bot) {
       const n = JSON.parse(statsText()).runs.length;
-      const copyBtn = this.add.text(cx, cy + DRAW.resultH / 2 + 34, T.copyStats(n), {
-        fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.fontSize * 0.8}px`, color: '#101410', backgroundColor: '#cfd3c8',
-        padding: { x: 14, y: 6 },
-      }).setOrigin(0.5).setDepth(21).setInteractive({ useHandCursor: true });
-      copyBtn.on('pointerdown', async () => copyBtn.setText((await copyStats()) ? T.copied : T.copyFailed));
+      const copyBtn = makeButton(this, cx, y0 + H + 36, T.copyStats(n), 'dark', async () => {
+        copyBtn.label.setText((await copyStats()) ? T.copied : T.copyFailed);
+      }, { size: DRAW.fontSize * 0.75, padY: 6 });
     }
     this.result = { panel, title, body, btn };
 

@@ -1,7 +1,7 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM, CORES, ELITE, BOSS, CRATES, RADIO } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM, CORES, ELITE, BOSS, CRATES, RADIO, JUICE } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
@@ -142,7 +142,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.bot) {
       this.input.on('pointerdown', this.onDown, this);
       this.input.on('pointermove', (p) => {
-        if (p.isDown && this.dragging) this.world.heli.target = { x: p.worldX, y: p.worldY };
+        if (p.isDown && this.dragging && !this.cine) this.world.heli.target = { x: p.worldX, y: p.worldY };
       });
       const up = () => {
         this.dragging = false;
@@ -160,6 +160,14 @@ export class GameScene extends Phaser.Scene {
     this.dmgLive = [];
     // подсказки первого запуска — только человеку
     this.tutorial = this.bot ? null : new Tutorial(this);
+    // Камеры: main — мир (трясётся, наезжает на босса), ui — интерфейс поверх, всегда неподвижен.
+    // Кто чей — по глубине (JUICE.uiDepth), раздаётся каждый кадр в routeCameras().
+    this.uiCam = this.cameras.add(0, 0, VIEW.width, VIEW.height);
+    this.cameras.main.setBounds(0, 0, VIEW.width, VIEW.height); // наезд у края карты не показывает пустоту за ней
+    this.bossG = this.add.graphics().setDepth(14.6);
+    this.hitStop = 0;
+    this.cine = null;
+    this.flashRect = this.add.rectangle(VIEW.width / 2, VIEW.height / 2, VIEW.width * 2, VIEW.height * 2, COLORS.gate, 0).setDepth(4.9);
 
     if (import.meta.env.DEV) window.__world = this.world;
   }
@@ -190,7 +198,7 @@ export class GameScene extends Phaser.Scene {
   // ---------- Ввод ----------
   onDown(p, over) {
     // Нажали на кнопку (пауза, итоги) — это не команда вертолёту
-    if (this.world.over || this.paused || this.card || over?.length) return;
+    if (this.world.over || this.paused || this.card || this.cine || over?.length) return;
     const x = p.worldX;
     const y = p.worldY;
     if (this.aiming) {
@@ -308,6 +316,42 @@ export class GameScene extends Phaser.Scene {
     this.radio.sayText('system', text);
   }
 
+  // ---------- Камера и «сочность» ----------
+  // Интерфейс (глубина ≥ JUICE.uiDepth) рисует только ui-камера, мир — только main
+  routeCameras() {
+    const main = this.cameras.main.id;
+    const ui = this.uiCam.id;
+    for (const o of this.children.list) o.cameraFilter = o.depth >= JUICE.uiDepth ? main : ui;
+  }
+
+  // Врата открылись: фиолетовая вспышка над миром и кольцо от врат
+  gateFlash() {
+    const g = this.map.gate;
+    this.flashRect.setAlpha(JUICE.gateFlash);
+    this.tweens.add({ targets: this.flashRect, alpha: 0, duration: JUICE.gateFlashTime, ease: 'Quad.easeOut' });
+    this.parts.add({ kind: 'ring', x: g.x, y: g.y, life: 0.6, size: g.r, grow: 220, color: FX.portal, alpha: 0.9 });
+    for (let i = 0; i < 3; i++) this.parts.portal(g.x, g.y, g.r * (1.2 + i * 0.3));
+  }
+
+  // Босс вышел: камера наезжает на врата, мир замедлен, потом обратно. Ввод на это время закрыт.
+  bossIntro() {
+    if (this.cine) return;
+    const cam = this.cameras.main;
+    const g = this.map.gate;
+    this.closeMenu();
+    this.dragging = false;
+    this.world.heli.target = null;
+    this.cine = true;
+    cam.pan(g.x, g.y, JUICE.bossIn, 'Sine.easeInOut');
+    cam.zoomTo(JUICE.bossZoom, JUICE.bossIn, 'Sine.easeInOut');
+    this.time.delayedCall(JUICE.bossIn + JUICE.bossHold, () => {
+      cam.pan(VIEW.width / 2, VIEW.height / 2, JUICE.bossOut, 'Sine.easeInOut', true);
+      cam.zoomTo(1, JUICE.bossOut, 'Sine.easeInOut', true, (c, k) => {
+        if (k >= 1) this.cine = null;
+      });
+    });
+  }
+
   // ---------- Досье ----------
   queueCard(kind, id) {
     const key = `${kind}:${id}`;
@@ -385,6 +429,7 @@ export class GameScene extends Phaser.Scene {
     // Пауза или открыто досье — время стоит, но кадр и HUD рисуем (иначе на старте пусто)
     this.radio.box.setVisible(!(this.paused || this.card));
     if (this.paused || this.card) {
+      this.routeCameras();
       this.draw(0);
       this.drawHud();
       return;
@@ -396,7 +441,10 @@ export class GameScene extends Phaser.Scene {
       w.heli.dir = dx || dy ? { x: dx, y: dy } : null;
       if (dx || dy) this.tutorial?.done('drag');
     }
-    this.acc += Math.min(delta, 100) / 1000 * SPEED;
+    this.routeCameras();
+    // стоп-кадр: мир стоит несколько десятков мс, картинка рисуется; в наезде на босса — замедление
+    if (this.hitStop > 0) this.hitStop -= delta;
+    else this.acc += Math.min(delta, 100) / 1000 * SPEED * (this.cine ? JUICE.bossSlow : 1);
     while (this.acc >= SIM.dt && !w.over) {
       if (this.bot) this.bot.step();
       w.step(SIM.dt);
@@ -445,6 +493,9 @@ export class GameScene extends Phaser.Scene {
       if (e.type === 'spawn' && !this.bot) this.queueCard(e.boss ? 'boss' : e.elite ? 'elite' : 'enemy', e.enemy);
       if (e.type === 'kill') this.parts.death(e.x, e.y, COLORS[e.enemy]);
       if (e.type === 'kill' && e.boss) this.parts.explosion(e.x, e.y, 70);
+      if (e.type === 'kill' && (e.elite || e.boss)) this.hitStop = Math.max(this.hitStop, e.boss ? JUICE.hitStopBoss : JUICE.hitStopElite);
+      if (e.type === 'waveStart') this.gateFlash();
+      if (e.type === 'spawn' && e.boss && !this.bot) this.bossIntro();
       else if (e.type === 'hit') this.parts.sparks(e.x, e.y - 8, FX.spark, 3);
       else if (e.type === 'spawn') this.parts.portal(this.map.gate.x, this.map.gate.y, this.map.gate.r);
       else if (e.type === 'levelUp') this.parts.levelUp(this.world.heli.x, this.world.heli.y);
@@ -696,7 +747,8 @@ export class GameScene extends Phaser.Scene {
       if (e.hp < e.maxHp && !e.boss) this.hpBar(top, e.x, e.y - DRAW.hpOffset[e.type] * (tier?.scale ?? 1), e.hp / e.maxHp, DRAW.hpBarW * (e.elite ? 0.9 : 0.6));
     }
     this.hidePool();
-    this.drawBossBar(top);
+    this.bossG.clear();
+    this.drawBossBar(this.bossG);
 
     // Снаряды — над фигурами
     // трассеры: короткая линия по направлению полёта; при вылете — вспышка у ствола

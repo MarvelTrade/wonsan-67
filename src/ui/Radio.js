@@ -7,28 +7,46 @@ export class Radio {
     this.scene = scene;
     this.queue = [];
     this.said = new Set();
-    this.current = null; // { key, t } — сколько уже показана
+    this.current = null; // { key, t, full, dur } — сколько уже показана
     this.pause = 0;
 
     const W = RADIO.width;
     const H = RADIO.height;
-    this.box = scene.add.container(VIEW.width / 2 - W / 2, -H - 10).setDepth(15);
+    const P = RADIO.pad;
+    const S = RADIO.portrait;
+    this.box = scene.add.container(RADIO.left, -H - 10).setDepth(15);
+    // корпус полевой рации: металлическая рамка, тёмная лицевая панель, винты по углам
     const bg = scene.add.graphics();
-    bg.fillStyle(COLORS.panel, RADIO.alpha).fillRoundedRect(0, 0, W, H, 10);
-    bg.lineStyle(2, 0x6b7a5a, 0.8).strokeRoundedRect(0, 0, W, H, 10);
+    bg.fillStyle(0x000000, 0.35).fillRoundedRect(3, 5, W, H, 12);
+    bg.fillStyle(RADIO.caseColor).fillRoundedRect(0, 0, W, H, 12);
+    bg.fillStyle(RADIO.caseLight).fillRoundedRect(0, 0, W, 6, { tl: 12, tr: 12, bl: 0, br: 0 });
+    bg.fillStyle(RADIO.face, RADIO.alpha).fillRoundedRect(6, 6, W - 12, H - 12, 8);
+    for (const [sx, sy] of [[12, 12], [W - 12, 12], [12, H - 12], [W - 12, H - 12]]) {
+      bg.fillStyle(RADIO.screw).fillCircle(sx, sy, 3.5);
+      bg.lineStyle(1, 0x000000, 0.6).lineBetween(sx - 2.5, sy, sx + 2.5, sy);
+    }
+    // окошко портрета
+    bg.fillStyle(0x0c0f08).fillRect(P - 3, P - 3, S + 6, S + 6);
     this.portrait = scene.add.graphics();
-    this.art = scene.add.image(RADIO.pad, RADIO.pad, '__DEFAULT').setOrigin(0).setVisible(false);
-    const textX = RADIO.pad * 2 + RADIO.portrait;
-    this.name = scene.add.text(textX, RADIO.pad + 2, '', {
+    this.art = scene.add.image(P, P, '__DEFAULT').setOrigin(0).setVisible(false);
+    // строки развёртки поверх портрета — «изображение по каналу»
+    const scan = scene.add.graphics();
+    scan.fillStyle(0x000000, 0.18);
+    for (let y = P; y < P + S; y += 3) scan.fillRect(P, y, S, 1);
+    scan.lineStyle(2, RADIO.caseLight, 0.9).strokeRect(P - 3, P - 3, S + 6, S + 6);
+    const textX = P * 2 + S;
+    // нашивка с именем
+    this.tape = scene.add.graphics();
+    this.name = scene.add.text(textX + 8, P + 2, '', {
       fontFamily: 'Arial, sans-serif', fontSize: `${RADIO.nameSize}px`, fontStyle: 'bold',
     });
-    this.line = scene.add.text(textX, RADIO.pad + RADIO.nameSize + 8, '', {
+    this.line = scene.add.text(textX, P + RADIO.nameSize + 14, '', {
       fontFamily: 'Arial, sans-serif', fontSize: `${RADIO.textSize}px`, color: COLORS.text,
-      wordWrap: { width: W - textX - RADIO.pad * 2 - RADIO.noiseSpace }, lineSpacing: 2,
+      wordWrap: { width: W - textX - P * 2 - RADIO.noiseSpace }, lineSpacing: 2,
     });
-    // «Помехи» — короткие штрихи справа, мигают, пока идёт реплика
+    // огонёк приёма и «звуковая дорожка» справа
     this.noise = scene.add.graphics();
-    this.box.add([bg, this.portrait, this.art, this.name, this.line, this.noise]);
+    this.box.add([bg, this.portrait, this.art, scan, this.tape, this.name, this.line, this.noise]);
   }
 
   // Поставить реплику в очередь (если есть и ещё не звучала)
@@ -58,17 +76,25 @@ export class Radio {
     const c = this.current;
     c.t += dt;
     // выезд, показ, уезд
-    const k = Math.min(1, c.t / RADIO.slide, (RADIO.show - c.t) / RADIO.slide);
+    const k = Math.min(1, c.t / RADIO.slide, (c.dur - c.t) / RADIO.slide);
     this.box.y = hiddenY + (RADIO.y - hiddenY) * Math.max(0, k);
-    this.noise.clear();
-    if (Math.floor(c.t * 12) % 2) {
-      this.noise.lineStyle(2, 0x9aa88a, 0.5);
-      for (let i = 0; i < 3; i++) {
-        const x = RADIO.width - 18 - i * 7;
-        this.noise.lineBetween(x, RADIO.height / 2 - 4 - i * 4, x, RADIO.height / 2 + 4 + i * 4);
-      }
+    // текст печатается по буквам
+    const shown = Math.min(c.full.length, Math.floor(c.t * RADIO.cps));
+    if (shown !== c.shown) {
+      c.shown = shown;
+      this.line.setText(c.full.slice(0, shown));
     }
-    if (c.t >= RADIO.show) {
+    const talking = shown < c.full.length;
+    // огонёк и дорожка
+    const g = this.noise;
+    g.clear();
+    const lx = RADIO.width - 22;
+    g.fillStyle(talking && Math.floor(c.t * 8) % 2 ? RADIO.ledOn : RADIO.ledOff).fillCircle(lx, 20, 5);
+    for (let i = 0; i < 5; i++) {
+      const h = talking ? 4 + Math.abs(Math.sin(c.t * 17 + i * 1.9)) * 22 : 3;
+      g.fillStyle(RADIO.wave, 0.85).fillRect(lx - 10 + i * 5, RADIO.height / 2 + 12 - h / 2, 3, h);
+    }
+    if (c.t >= c.dur) {
       this.current = null;
       this.pause = RADIO.gap;
       this.box.y = hiddenY;
@@ -78,9 +104,15 @@ export class Radio {
   show(key) {
     const [who, text] = T.radio[key];
     const sp = SPEAKERS[who];
-    this.current = { key, t: 0 };
+    // заранее раскладываем текст по строкам, чтобы при печати слова не прыгали
+    const full = this.line.getWrappedText(text).join('\n');
+    const dur = Math.max(RADIO.show, full.length / RADIO.cps + RADIO.hold);
+    this.current = { key, t: 0, full, dur, shown: -1 };
+    this.line.setText('');
     this.name.setText(T.speakers[who]).setColor(sp.name);
-    this.line.setText(text);
+    this.tape.clear();
+    this.tape.fillStyle(0x0c0f08, 0.8).fillRect(this.name.x - 6, this.name.y - 2, this.name.width + 12, this.name.height + 4);
+    this.tape.fillStyle(sp.bg).fillRect(this.name.x - 6, this.name.y - 2, 3, this.name.height + 4);
     const tex = `portrait_${who}`;
     const hasArt = this.scene.textures.exists(tex);
     this.art.setVisible(hasArt);

@@ -2,11 +2,11 @@
 // kind: 'primary' (жёлтая), 'ok' (зелёная), 'plain' (серая), 'dark' (оливковая, светлый текст)
 import { BUTTON as B } from '../config.js';
 
-export function makeButton(scene, x, y, label, kind, onClick, { size = B.font, depth = 21, padX = B.padX, padY = B.padY } = {}) {
+export function makeButton(scene, x, y, label, kind, onClick, { size = B.font, depth = 21, padX = B.padX, padY = B.padY, minW = B.minW } = {}) {
   const k = B.kinds[kind] || B.kinds.plain;
   const text = scene.add.text(0, 0, label, { fontFamily: 'Arial, sans-serif', fontSize: `${size}px`, fontStyle: 'bold', color: k.text })
     .setOrigin(0.5);
-  const w = Math.max(B.minW, text.width + padX * 2);
+  const w = Math.max(minW, text.width + padX * 2);
   const h = text.height + padY * 2;
   const g = scene.add.graphics();
   const draw = (pressed) => {

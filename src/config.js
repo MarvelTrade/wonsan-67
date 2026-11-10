@@ -438,13 +438,23 @@ export const RADIO = {
   gap: 0.35,            // с паузы между репликами
   maxQueue: 3,          // больше в очереди не копим — старые события уже не к месту
   y: 56,                // верх плашки
-  width: 780,
+  left: 340,            // левый край: правее плашек HUD (волна с таймером ~320 px)
+  width: 760,
   height: 116,
   portrait: 98,         // сторона квадрата с портретом
   pad: 8,
   noiseSpace: 40,       // px справа под «помехи», текст туда не заходит
   alpha: 0.78,          // фон полупрозрачный: на уровне 3 под плашкой проходит дорога
-  slide: 0.2,           // с — выезд и уезд
+  slide: 0.2,
+  cps: 42,              // букв в секунду — текст печатается
+  hold: 2.2,            // с после того, как допечатал
+  caseColor: 0x4a5530,  // корпус полевой рации
+  caseLight: 0x6e7a4a,
+  face: 0x1a2014,
+  screw: 0x9a9a88,
+  ledOn: 0x9bd36e,
+  ledOff: 0x2c3a26,
+  wave: 0xc8d48a,           // с — выезд и уезд
   nameSize: 20,
   textSize: 26,         // 20 → 26, см. DRAW.fontSize
 };
@@ -567,6 +577,27 @@ export const UNITS = {
   heliMark: 0xc23a26,
   glass: 0x9fc4d4,
   rotor: 0xd8e0d0,
+};
+
+// HUD (src/ui/Hud.js): плашки со значками. Только картинка.
+export const HUD = {
+  margin: 10,
+  gap: 8,
+  chipH: 48,
+  pad: 10,
+  icon: 26,
+  radius: 9,
+  font: 26,
+  text: '#f4f0e4',
+  fill: 0x1c2216,
+  alpha: 0.82,
+  edge: 0x6b7a5a,
+  ok: 0x9bd36e,
+  empty: 0x3a3f36,
+  alert: 0xc4432c,
+  waveOn: 0x6a3a8a,
+  lowHp: 3,             // убежище ≤ этого — значок и полоска красные
+  flashTime: 0.45,      // с — плашка убежища краснеет, когда его бьют
 };
 
 // Кнопки интерфейса (src/ui/button.js)

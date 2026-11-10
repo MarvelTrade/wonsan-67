@@ -1,7 +1,7 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
@@ -15,6 +15,7 @@ import { Radio } from '../ui/Radio.js';
 import { copyStats, statsText } from '../ui/copyStats.js';
 import { drawStars } from '../ui/stars.js';
 import { makeButton } from '../ui/button.js';
+import { Hud } from '../ui/Hud.js';
 
 const params = new URLSearchParams(location.search);
 // «+» в адресе браузер превращает в пробел: ?bot=2t1w+a приходит как «2t1w a»
@@ -47,22 +48,16 @@ export class GameScene extends Phaser.Scene {
 
     const style = { fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.fontSize}px`, color: COLORS.text };
     const pad = DRAW.hudPad;
-    // Подложка HUD — чтобы цифры читались поверх карты
-    const hudBg = this.add.graphics().setDepth(14);
-    hudBg.fillStyle(COLORS.panel, DRAW.hudAlpha).fillRoundedRect(pad / 2, pad / 2, DRAW.hudLeftW, DRAW.fontSize * 3.9 + pad, 8);
-    hudBg.fillRoundedRect(VIEW.width - pad / 2 - DRAW.hudRightW, pad / 2, DRAW.hudRightW, DRAW.fontSize * 1.3 + pad, 8);
-    this.hudWave = this.add.text(pad, pad, '', style).setDepth(15);
-    this.hudPeople = this.add.text(pad, pad + DRAW.fontSize * 1.3, '', style).setDepth(15);
-    this.hudBoard = this.add.text(pad, pad + DRAW.fontSize * 2.6, '', style).setDepth(15);
-    this.hudShelter = this.add.text(VIEW.width - pad, pad, '', style).setOrigin(1, 0).setDepth(15);
-    // Пауза: кнопка под «Убежищем»; сама включается, когда вкладка уходит в фон (звонок, свернули)
+    // HUD — плашки со значками (src/ui/Hud.js)
+    this.hud = new Hud(this);
+    // Пауза: кнопка справа вверху; сама включается, когда вкладка уходит в фон (звонок, свернули)
     this.paused = false;
     this.pauseUi = null;
     if (!BOT_PLAN) {
-      const pauseBtn = this.add.text(VIEW.width - pad, pad + DRAW.fontSize * 1.6, T.pauseIcon, {
-        ...style, color: '#101410', backgroundColor: '#cfd3c8', padding: { x: 16, y: 6 },
-      }).setOrigin(1, 0).setDepth(16).setInteractive({ useHandCursor: true });
-      pauseBtn.on('pointerdown', () => this.setPaused(!this.paused));
+      const pauseBtn = makeButton(this, 0, 0, T.pauseIcon, 'plain', () => this.setPaused(!this.paused), {
+        size: DRAW.fontSize, depth: 16, padX: 16, padY: 7, minW: 56,
+      });
+      pauseBtn.setPosition(VIEW.width - HUD.margin - pauseBtn.width / 2, HUD.margin + pauseBtn.height / 2);
       // «Вызвать волну раньше» — под вратами, пока идёт подготовка или перерыв
       const gate = this.map.gate;
       this.callBtn = this.add.text(gate.x + gate.r, gate.y + gate.r + DRAW.callEarlyGap, '', {
@@ -81,7 +76,7 @@ export class GameScene extends Phaser.Scene {
       this.input.keyboard.on('keydown-ESC', () => this.setPaused(!this.paused));
       this.input.keyboard.on('keydown-P', () => this.setPaused(!this.paused));
     }
-    this.add.text(VIEW.width / 2, pad, this.world.level.title, { ...style, color: COLORS.textDim }).setOrigin(0.5, 0);
+    this.add.text(VIEW.width / 2, pad, this.world.level.title, { ...style, color: COLORS.textDim }).setOrigin(0.5, 0).setShadow(2, 2, '#000', 4);
     this.hudBot = this.add.text(VIEW.width - pad, VIEW.height - pad, BOT_PLAN ? T.bot(BOT_PLAN, SPEED) : '', {
       ...style, color: COLORS.textDim, fontSize: `${DRAW.fontSize * 0.7}px`,
     }).setOrigin(1, 1);
@@ -556,14 +551,7 @@ export class GameScene extends Phaser.Scene {
   // ---------- HUD ----------
   drawHud() {
     const w = this.world;
-    const wave = w.wave;
-    const total = w.waves.list.length;
-    const n = Math.min(w.waveNumber, total);
-    const status = wave.phase === 'wave' ? T.waveOn : T.waveIn(Math.ceil(wave.timer));
-    this.hudWave.setText(w.over ? T.wave(n, total) : `${T.wave(n, total)} · ${status}`);
-    this.hudPeople.setText(T.people(w.people));
-    this.hudBoard.setText(T.onboard(w.heli.carrying, HELI.capacity));
-    this.hudShelter.setText(T.shelter(w.shelter.hp, w.shelter.maxHp));
+    this.hud.update(w, this.game.loop.delta / 1000);
     this.drawAbilities();
     if (this.callBtn) {
       const show = w.canCallEarly;

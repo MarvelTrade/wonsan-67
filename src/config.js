@@ -71,6 +71,7 @@ const MAP_1 = {
   shelter: { x: 80, y: 560, w: 110, h: 90 },
   truck: { x: 150, y: 470 },          // сюда вертолёт сдаёт спасённых
   heliStart: { x: 200, y: 420 },
+  abilityCorner: 'right', // кнопки умений справа внизу: слева внизу убежище
   // Дорога — ломаная от врат к убежищу
   road: [
     [1190, 190],
@@ -277,6 +278,7 @@ const MAP_2 = {
   shelter: { x: 80, y: 220, w: 110, h: 90 },
   truck: { x: 170, y: 330 },
   heliStart: { x: 230, y: 380 },
+  abilityCorner: 'left',  // справа внизу врата
   road: [
     [1190, 560],
     [990, 560],
@@ -345,6 +347,7 @@ const MAP_3 = {
   shelter: { x: 80, y: 360, w: 110, h: 90 },
   truck: { x: 170, y: 470 },
   heliStart: { x: 230, y: 460 },
+  abilityCorner: 'left',
   road: [
     [1190, 140],
     [700, 140],
@@ -487,6 +490,84 @@ export const WORLD_MAP = {
   labelFont: 26,
 };
 
+// Фон уровня (src/art/terrain.js): палитра и плотность. Только картинка.
+export const TERRAIN = {
+  seed: 67,
+  seaH: 46,
+  patches: 70,
+  tufts: 900,
+  stones: 120,
+  trees: 34,
+  grass: 0x3a4a30,
+  grassDark: 0x2c3a26,
+  grassDry: 0x5e6440,
+  grassLight: 0x7d8a58,
+  sand: 0x9e8b62,
+  sea: 0x22405a,
+  seaLight: 0x3f6d8e,
+  foam: 0xd8e6ea,
+  road: 0x6e5c44,
+  roadEdge: 0x4e4130,
+  roadShoulder: 0x55583a,
+  rut: 0x584a36,
+  stone: 0x8a8578,
+  wall: 0x9a9284,
+  roofTile: 0x8a4a38,
+  roofTileDark: 0x6a3a2c,
+  roofSlate: 0x6c6e70,
+  roofSlateDark: 0x515356,
+  tree: 0x34502c,
+  treeDark: 0x22341e,
+  treeLight: 0x5a7a44,
+};
+
+// Постройки и техника (src/art/props.js). Только картинка.
+export const PROPS = {
+  sandbag: 0xa8946a,
+  sandbagDark: 0x8c7a56,
+  concrete: 0x8a8a84,
+  concreteLight: 0xa4a49c,
+  concreteDark: 0x6a6a66,
+  truckCab: 0x3f5232,
+  truckTent: 0x5f6b3e,
+  glass: 0x9fc4d4,
+  gunBase: 0x4a4636,
+  gunMetal: 0x23231f,
+  gateDeep: 0x1c0f2c,
+};
+
+// Юниты (src/art/units.js). Только картинка.
+export const UNITS = {
+  outline: 0x141810,
+  eye: 0x101008,
+  eyeRed: 0xffd23a,
+  goblin: 0x6cc44a,
+  goblinEar: 0x4f9a36,
+  goblinRag: 0x6b5236,
+  spearman: 0x3f8a3a,
+  spearHelm: 0x5a5e62,
+  spearShaft: 0x9c7a4c,
+  spearHead: 0xc8ccd0,
+  shield: 0x7a5232,
+  shieldBoss: 0xb8b0a0,
+  berserker: 0xc4432c,
+  berserkerDark: 0x5a2418,
+  horn: 0xe8dcc0,
+  axeShaft: 0x6a4a2c,
+  axeHead: 0x9aa0a6,
+  skin: 0xe2bf9c,
+  hair: 0x2a1d17,
+  cloth: [0x4a6a8a, 0x8a5a3a, 0x6a6a5a, 0x7a3a3a, 0x3a5a4a],
+  soldierBody: 0x5a6a3c,
+  helmet: 0x4a5a30,
+  rifle: 0x23231f,
+  heli: 0x5f6b3e,
+  heliDark: 0x434d2c,
+  heliMark: 0xc23a26,
+  glass: 0x9fc4d4,
+  rotor: 0xd8e0d0,
+};
+
 // Размеры отрисовки (только картинка, на правила не влияют)
 export const DRAW = {
   slotRadius: 22,
@@ -499,8 +580,8 @@ export const DRAW = {
   abilityR: 40,         // кнопки умений
   abilityGap: 16,
   abilityBottom: 76,    // от нижнего края до низа кнопок умений (над морем и подсказкой)
-  heliLength: 60,
-  heliWidth: 16,
+  heliLength: 78,       // транспортный вертолёт: длиннее и шире прежнего силуэта
+  heliWidth: 24,
   rotorRadius: 34,
   shadowOffset: 14,
   survivorRadius: 6,

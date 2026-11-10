@@ -1,19 +1,23 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
 import { saveRun } from '../telemetry.js';
 import { markWin, wasSeen, markSeen } from '../progress.js';
 import { Dossier } from '../ui/Dossier.js';
+import { drawTerrain } from '../art/terrain.js';
+import { drawShelter, drawTruck, drawGun, drawGate, drawSandbags } from '../art/props.js';
+import { drawGoblin, drawSpearman, drawBerserker, drawSurvivor, drawSoldier, drawHeli } from '../art/units.js';
 import { Radio } from '../ui/Radio.js';
 import { copyStats, statsText } from '../ui/copyStats.js';
 import { drawStars } from '../ui/stars.js';
 
 const params = new URLSearchParams(location.search);
-const BOT_PLAN = params.get('bot');
+// «+» в адресе браузер превращает в пробел: ?bot=2t1w+a приходит как «2t1w a»
+const BOT_PLAN = params.get('bot')?.replace(' ', '+') ?? null;
 const SPEED = Math.max(0.25, +(params.get('speed') || 1));
 const SEED = params.has('seed') ? +params.get('seed') : null;
 const START_LEVEL = +(params.get('level') || 1);
@@ -96,7 +100,8 @@ export class GameScene extends Phaser.Scene {
     this.abilityG = this.add.graphics().setDepth(16);
     this.abilityBtns = (this.world.level.abilities || []).map((id, i) => {
       const r = DRAW.abilityR;
-      const x = DRAW.hudPad + r + i * (r * 2 + DRAW.abilityGap);
+      const step = r * 2 + DRAW.abilityGap;
+      const x = this.map.abilityCorner === 'right' ? VIEW.width - DRAW.hudPad - r - i * step : DRAW.hudPad + r + i * step;
       const y = VIEW.height - DRAW.abilityBottom - r;
       const zone = this.add.zone(x, y, r * 2, r * 2).setInteractive({ useHandCursor: true }).setDepth(16);
       if (!BOT_PLAN) zone.on('pointerdown', () => this.toggleAim(id));
@@ -380,24 +385,22 @@ export class GameScene extends Phaser.Scene {
   drawBackground() {
     const g = this.bg;
     const MAP = this.map;
-    g.fillStyle(COLORS.ground).fillRect(0, 0, VIEW.width, VIEW.height);
-    // Море вдоль нижнего края — восточное побережье
-    g.fillStyle(COLORS.sea).fillRect(0, VIEW.height - 40, VIEW.width, 40);
-    // Дорога: кромка и полотно
-    for (const [width, color] of [[MAP.roadWidth + 8, COLORS.roadEdge], [MAP.roadWidth, COLORS.road]]) {
-      g.lineStyle(width, color);
-      g.beginPath();
-      MAP.road.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
-      g.strokePath();
-      for (const [x, y] of MAP.road) g.fillStyle(color).fillCircle(x, y, width / 2);
+    // Земля, берег, дорога, дома, рощи — src/art/terrain.js
+    drawTerrain(g, this.world);
+    // Места под постройку — бетонные площадки
+    for (const s of this.world.slots) {
+      g.fillStyle(0x000000, 0.25).fillCircle(s.x + 3, s.y + 4, DRAW.slotRadius + 4);
+      g.fillStyle(PROPS.concreteDark).fillCircle(s.x, s.y, DRAW.slotRadius + 4);
+      g.fillStyle(PROPS.concrete).fillCircle(s.x - 1, s.y - 1, DRAW.slotRadius);
     }
-    // Убежище и грузовик
-    const sh = MAP.shelter;
-    g.fillStyle(COLORS.shelter).fillRect(sh.x - sh.w / 2, sh.y - sh.h / 2, sh.w, sh.h);
-    g.lineStyle(2, 0x000000, 0.4).strokeRect(sh.x - sh.w / 2, sh.y - sh.h / 2, sh.w, sh.h);
-    g.fillStyle(COLORS.truck).fillRect(MAP.truck.x - 22, MAP.truck.y - 12, 44, 24);
-    g.fillStyle(0x000000, 0.35).fillRect(MAP.truck.x + 10, MAP.truck.y - 12, 12, 24);
-    g.lineStyle(1, COLORS.truck, 0.5).strokeCircle(MAP.truck.x, MAP.truck.y, HELI.dropRadius);
+    drawShelter(g, MAP.shelter);
+    // Зона приёма людей у грузовика — пунктирный круг
+    const dr = HELI.dropRadius;
+    g.lineStyle(2, COLORS.truck, 0.55);
+    for (let i = 0; i < 24; i += 2) {
+      g.beginPath().arc(MAP.truck.x, MAP.truck.y, dr, (i / 24) * Math.PI * 2, ((i + 1) / 24) * Math.PI * 2, false).strokePath();
+    }
+    drawTruck(g, MAP.truck.x, MAP.truck.y);
   }
 
   // ---------- Кадр ----------
@@ -407,11 +410,8 @@ export class GameScene extends Phaser.Scene {
     const MAP = this.map;
     g.clear();
 
-    // Врата
-    const pulse = 0.5 + 0.5 * Math.sin(w.t * DRAW.gatePulse);
-    g.fillStyle(COLORS.gate, 0.25 + 0.2 * pulse).fillCircle(MAP.gate.x, MAP.gate.y, MAP.gate.r * (1.2 + 0.15 * pulse));
-    g.fillStyle(COLORS.gate, 0.9).fillCircle(MAP.gate.x, MAP.gate.y, MAP.gate.r);
-    g.fillStyle(COLORS.gateCore, 0.8).fillCircle(MAP.gate.x, MAP.gate.y, MAP.gate.r * 0.45);
+    // Врата — вращаются и по реальному времени, даже на паузе подготовки
+    drawGate(g, MAP.gate, this.time.now / 1000);
 
     // Проволока
     for (const wire of w.wires) {
@@ -454,9 +454,7 @@ export class GameScene extends Phaser.Scene {
     // Бойцы подкрепления
     for (const s of w.soldiers) {
       const r = DRAW.soldierRadius;
-      g.lineStyle(3, 0x2a2a20).lineBetween(s.x, s.y, s.x + Math.cos(s.aim) * r * 2.2, s.y + Math.sin(s.aim) * r * 2.2);
-      g.fillStyle(COLORS.soldier).fillCircle(s.x, s.y, r);
-      g.lineStyle(2, 0x101410, 0.7).strokeCircle(s.x, s.y, r);
+      drawSoldier(g, s.x, s.y, r, s.aim);
       this.hpBar(g, s.x, s.y - r - 7, s.hp / s.maxHp, DRAW.hpBarW * 0.6);
     }
 
@@ -473,15 +471,16 @@ export class GameScene extends Phaser.Scene {
     for (const t of w.towers) {
       const half = DRAW.towerSize / 2;
       if (!t.alive) {
-        g.fillStyle(COLORS.towerBroken, 0.7).fillRect(t.x - half, t.y - half, DRAW.towerSize, DRAW.towerSize);
+        // воронка и раскиданные мешки
+        g.fillStyle(0x1a1610, 0.6).fillCircle(t.x, t.y, DRAW.towerSize * 0.55);
+        drawSandbags(g, t.x, t.y, DRAW.towerSize * 0.95, 5, 0.6);
         continue;
       }
       if (t.trench) {
         g.lineStyle(DRAW.trenchWidth, COLORS.trench).strokeCircle(t.x, t.y, DRAW.trenchRadius);
         g.lineStyle(2, COLORS.trenchEdge).strokeCircle(t.x, t.y, DRAW.trenchRadius + DRAW.trenchWidth / 2);
       }
-      g.fillStyle(COLORS.tower).fillRect(t.x - half, t.y - half, DRAW.towerSize, DRAW.towerSize);
-      g.lineStyle(5, 0x2a2a20).lineBetween(t.x, t.y, t.x + Math.cos(t.aim) * DRAW.barrel, t.y + Math.sin(t.aim) * DRAW.barrel);
+      drawGun(g, t, DRAW.towerSize * 1.5, DRAW.barrel);
       g.lineStyle(1, COLORS.tower, 0.12).strokeCircle(t.x, t.y, BUILD.tower.range);
       // Пушку можно окопать — тонкое кольцо (жёлтое, если хватает людей)
       if (!t.trench && w.level.builds.includes('trench')) {
@@ -491,39 +490,24 @@ export class GameScene extends Phaser.Scene {
       this.hpBar(g, t.x, t.y - half - 8, t.hp / t.maxHp);
     }
 
-    // Люди
+    // Люди — машут, кольцо тает, пока ждут
     for (const s of w.survivors) {
       const k = s.life / w.surv.life;
       g.lineStyle(2, COLORS.survivorRing, 0.25 + 0.5 * Math.min(1, k)).strokeCircle(s.x, s.y, DRAW.survivorRing);
-      g.fillStyle(COLORS.survivor).fillCircle(s.x, s.y, DRAW.survivorRadius);
+      drawSurvivor(g, s.x, s.y, s.id, this.time.now / 1000);
     }
 
-    // Враги
+    // Враги — смотрят по ходу дороги (берсерк — на цель)
     for (const e of w.enemies) {
       const cfg = ENEMIES[e.type];
-      const color = e.hurtT > 0 ? COLORS.enemyHurt : COLORS[e.type];
-      if (e.type === 'berserker') {
-        // Топор: на цель удара или вперёд
-        const ahead = e.goal ? e.goal : w.path.at(e.d + 10);
-        const a = Math.atan2(ahead.y - e.y, ahead.x - e.x);
-        const len = cfg.radius * (e.stabAt ? 2.6 : 1.8);
-        g.lineStyle(4, COLORS.axe).lineBetween(e.x, e.y, e.x + Math.cos(a) * len, e.y + Math.sin(a) * len);
-        g.fillStyle(color).fillCircle(e.x, e.y, cfg.radius);
-        g.lineStyle(2, 0x000000, 0.5).strokeCircle(e.x, e.y, cfg.radius);
-      } else if (e.type === 'spearman') {
-        // Копьё смотрит на цель удара или вперёд по дороге
-        const ahead = w.path.at(e.d + 10);
-        const tx = e.stabAt ? e.stabAt.x : ahead.x;
-        const ty = e.stabAt ? e.stabAt.y : ahead.y;
-        const a = Math.atan2(ty - e.y, tx - e.x);
-        const len = e.stabAt ? cfg.reach : cfg.radius * 2.4;
-        g.lineStyle(3, COLORS.spear).lineBetween(e.x, e.y, e.x + Math.cos(a) * len, e.y + Math.sin(a) * len);
-        g.fillStyle(color).fillRect(e.x - cfg.radius, e.y - cfg.radius, cfg.radius * 2, cfg.radius * 2);
-      } else {
-        g.fillStyle(color).fillCircle(e.x, e.y, cfg.radius);
-      }
-      if (e.slowed) g.lineStyle(1, COLORS.wire, 0.8).strokeCircle(e.x, e.y, cfg.radius + 3);
-      if (e.hp < e.maxHp) this.hpBar(g, e.x, e.y - cfg.radius - 6, e.hp / e.maxHp, DRAW.hpBarW * 0.6);
+      const hurt = e.hurtT > 0;
+      const ahead = e.goal && e.state === 'charge' ? e.goal : w.path.at(e.d + 8);
+      const a = Math.atan2(ahead.y - e.y, ahead.x - e.x);
+      if (e.type === 'berserker') drawBerserker(g, e.x, e.y, cfg.radius, a, hurt, !!e.stabAt);
+      else if (e.type === 'spearman') drawSpearman(g, e.x, e.y, cfg.radius, a, hurt, e.stabAt, cfg.reach);
+      else drawGoblin(g, e.x, e.y, cfg.radius, a, hurt);
+      if (e.slowed || e.blocked) g.lineStyle(1, COLORS.wire, 0.8).strokeCircle(e.x, e.y, cfg.radius + 4);
+      if (e.hp < e.maxHp) this.hpBar(g, e.x, e.y - cfg.radius - 8, e.hp / e.maxHp, DRAW.hpBarW * 0.6);
     }
 
     // Снаряды
@@ -531,16 +515,11 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(s.from === 'heli' ? COLORS.bullet : COLORS.towerBullet).fillCircle(s.x, s.y, DRAW.bulletRadius);
     }
 
-    // Вертолёт: тень, корпус, хвост, винт
+    // Вертолёт: тень на земле, корпус, винты; люди на борту — точками у двери
     const h = w.heli;
-    this.drawHeli(g, h.x + DRAW.shadowOffset, h.y + DRAW.shadowOffset, h.rot, 0x000000, 0.3);
-    this.drawHeli(g, h.x, h.y, h.rot, COLORS.heli, 1);
-    g.lineStyle(2, COLORS.heliRotor, 0.5);
-    for (let i = 0; i < 5; i++) {
-      const a = h.rotor + (i * Math.PI * 2) / 5;
-      g.lineBetween(h.x, h.y, h.x + Math.cos(a) * DRAW.rotorRadius, h.y + Math.sin(a) * DRAW.rotorRadius);
-    }
-    for (let i = 0; i < h.carrying; i++) g.fillStyle(COLORS.survivor).fillCircle(h.x - 8 + i * 8, h.y + DRAW.heliWidth + 6, 3);
+    drawHeli(g, h.x + DRAW.shadowOffset, h.y + DRAW.shadowOffset, h.rot, h.rotor, DRAW.heliLength, DRAW.heliWidth, true);
+    drawHeli(g, h.x, h.y, h.rot, h.rotor, DRAW.heliLength, DRAW.heliWidth, false);
+    for (let i = 0; i < h.carrying; i++) g.fillStyle(COLORS.survivor).fillCircle(h.x - 8 + i * 8, h.y + DRAW.heliWidth + 10, 3);
 
     // Вспышки
     const f = this.fxG;
@@ -574,24 +553,6 @@ export class GameScene extends Phaser.Scene {
       });
       m.lineStyle(2, COLORS.slotAffordable).strokeCircle(this.menu.slot.x, this.menu.slot.y, DRAW.slotRadius + 4);
     }
-  }
-
-  drawHeli(g, x, y, rot, color, alpha) {
-    const L = DRAW.heliLength;
-    const W = DRAW.heliWidth;
-    const c = Math.cos(rot);
-    const s = Math.sin(rot);
-    const pt = (fx, fy) => ({ x: x + fx * c - fy * s, y: y + fx * s + fy * c });
-    // корпус — вытянутый шестиугольник, нос вперёд
-    const body = [pt(L * 0.38, 0), pt(L * 0.25, -W / 2), pt(-L * 0.15, -W / 2), pt(-L * 0.2, 0), pt(-L * 0.15, W / 2), pt(L * 0.25, W / 2)];
-    g.fillStyle(color, alpha).fillPoints(body, true);
-    // хвостовая балка
-    const t1 = pt(-L * 0.2, 0);
-    const t2 = pt(-L * 0.62, 0);
-    g.lineStyle(4, color, alpha).lineBetween(t1.x, t1.y, t2.x, t2.y);
-    const r1 = pt(-L * 0.62, -W * 0.5);
-    const r2 = pt(-L * 0.62, W * 0.5);
-    g.lineStyle(2, color, alpha).lineBetween(r1.x, r1.y, r2.x, r2.y);
   }
 
   hpBar(g, x, y, k, width = DRAW.hpBarW) {

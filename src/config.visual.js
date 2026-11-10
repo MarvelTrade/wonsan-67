@@ -350,6 +350,11 @@ export const FX = {
 export const DRAW = {
   slotRadius: 30,       // 22 → 30 (план фазы 1: место под постройку заметное; нажатие — BUILD.menuRadius)
   slotPulse: 4,         // рад/с — пульс кольца у места, на которое хватает людей
+  // радиус пушки (план фазы 1): при постройке и по тапу на пушку; постоянных бледных кругов больше нет
+  rangeShow: 2.5,       // с — сколько виден радиус после тапа по пушке
+  rangeFill: 0.07,
+  rangeLine: 0.75,
+  rangeDashes: 36,
   towerSize: 26,
   barrel: 22,
   trenchRadius: 24,

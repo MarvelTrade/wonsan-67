@@ -173,6 +173,8 @@ export class GameScene extends Phaser.Scene {
         return;
       }
     }
+    const tapped = this.world.towers.find((t) => t.alive && Math.hypot(t.x - x, t.y - y) <= BUILD.menuRadius);
+    if (tapped) this.rangeShow = { id: tapped.id, until: this.time.now + DRAW.rangeShow * 1000 };
     const slot = this.world.slots.find((s) => Math.hypot(s.x - x, s.y - y) <= BUILD.menuRadius && this.menuKinds(s).length);
     if (slot) {
       this.openMenu(slot, this.menuKinds(slot));
@@ -613,7 +615,7 @@ export class GameScene extends Phaser.Scene {
       const gy = t.y - DRAW.nestGunH;
       top.lineStyle(5, 0x1c1c18).lineBetween(t.x, gy, t.x + Math.cos(t.aim) * DRAW.barrel, gy + Math.sin(t.aim) * DRAW.barrel * 0.6);
       top.fillStyle(0x2a2a26).fillCircle(t.x, gy, 5);
-      g.lineStyle(1, COLORS.tower, 0.12).strokeCircle(t.x, t.y, BUILD.tower.range);
+      if (this.rangeShow?.id === t.id && this.time.now < this.rangeShow.until) this.rangeRing(g, t.x, t.y, COLORS.tower);
       if (!t.trench && w.level.builds.includes('trench')) {
         const can = w.people >= BUILD.trench.cost;
         g.lineStyle(2, can ? COLORS.slotAffordable : COLORS.slot, can ? 0.8 : 0.25).strokeCircle(t.x, t.y, DRAW.trenchRadius);
@@ -717,6 +719,19 @@ export class GameScene extends Phaser.Scene {
           .setPosition(b.rect.centerX, b.rect.centerY).setVisible(true).setDepth(10.5); // над подложкой (на одной глубине 10 текст уходил под неё)
       });
       m.lineStyle(2, COLORS.slotAffordable).strokeCircle(this.menu.slot.x, this.menu.slot.y, DRAW.slotRadius + 4);
+      if (this.menu.buttons.some((b) => b.kind === 'tower')) this.rangeRing(g, this.menu.slot.x, this.menu.slot.y, COLORS.slotAffordable);
+    }
+  }
+
+  // Радиус пушки: лёгкая заливка и пунктирный круг (на земле, под фигурами)
+  rangeRing(g, x, y, color) {
+    const r = BUILD.tower.range;
+    g.fillStyle(color, DRAW.rangeFill).fillCircle(x, y, r);
+    const n = DRAW.rangeDashes;
+    g.lineStyle(2, color, DRAW.rangeLine);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      g.beginPath().arc(x, y, r, a, a + (Math.PI / n) * 1.1, false).strokePath();
     }
   }
 

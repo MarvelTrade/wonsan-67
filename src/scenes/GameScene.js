@@ -9,6 +9,7 @@ import { saveRun } from '../telemetry.js';
 import { markWin, wasSeen, markSeen, markQuests } from '../progress.js';
 import { loadSettings, setSetting } from '../settings.js';
 import { Tutorial } from '../ui/Tutorial.js';
+import { slideInSince, snapshot } from '../ui/juice.js';
 import { Dossier } from '../ui/Dossier.js';
 import { SystemWindow } from '../ui/SystemWindow.js';
 import { drawTerrain } from '../art/terrain.js';
@@ -397,6 +398,7 @@ export class GameScene extends Phaser.Scene {
 
   // «Система»: повысился уровень — окно выбора усиления (бот выбирает сам, см. Bot)
   openSystem() {
+    const before = snapshot(this);
     if (this.card || this.bot || !this.world.offer || this.world.over) return;
     this.closeMenu();
     this.world.heli.target = null;
@@ -411,9 +413,11 @@ export class GameScene extends Phaser.Scene {
         this.openSystem();
       }),
     };
+    slideInSince(this, before);
   }
 
   openNextCard() {
+    const before = snapshot(this);
     if (this.card || !this.cards.length || this.world.over) return;
     const entry = this.cards.shift();
     this.closeMenu();
@@ -427,6 +431,7 @@ export class GameScene extends Phaser.Scene {
         this.openNextCard();
       }),
     };
+    slideInSince(this, before);
   }
 
   // ---------- Цикл ----------
@@ -441,6 +446,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.closeMenu();
+    const pauseBefore = snapshot(this);
     const cx = VIEW.width / 2;
     const cy = VIEW.height / 2;
     const dim = this.add.rectangle(cx, cy, VIEW.width, VIEW.height, 0x000000, 0.55).setDepth(18).setInteractive();
@@ -458,6 +464,7 @@ export class GameScene extends Phaser.Scene {
       dmg.label.setText(T.dmgToggle(loadSettings().dmgNumbers));
     }, { depth: 19, size: DRAW.fontSize * 0.9, padY: 10 });
     this.pauseUi = [dim, plate, title, resume, map, dmg];
+    slideInSince(this, pauseBefore);
   }
 
   update(_time, delta) {
@@ -1036,6 +1043,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.closeMenu();
     this.radio.stop();
+    const resultBefore = snapshot(this);
     const cx = VIEW.width / 2;
     const cy = VIEW.height / 2;
     const W = DRAW.resultW;
@@ -1082,6 +1090,7 @@ export class GameScene extends Phaser.Scene {
       }, { size: DRAW.fontSize * 0.75, padY: 6 });
     }
     this.result = { panel, title, body, btn };
+    slideInSince(this, resultBefore);
 
     if (this.bot && autoRuns > 1) {
       autoRuns--;

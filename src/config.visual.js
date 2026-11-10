@@ -352,6 +352,11 @@ export const HUD = {
 
 // Кнопки интерфейса (src/ui/button.js)
 export const BUTTON = {
+  // пружина (план фазы 2): наведение, нажатие; панели выезжают на slideDy за slideTime
+  hoverScale: 1.05,
+  pressScale: 0.92,
+  slideDy: 40,
+  slideTime: 280,
   font: 28,
   padX: 26,
   padY: 10,

@@ -19,12 +19,25 @@ export function makeButton(scene, x, y, label, kind, onClick, { size = B.font, d
   };
   draw(false);
   const box = scene.add.container(x, y, [g, text]).setDepth(depth).setSize(w, h).setInteractive({ useHandCursor: true });
-  box.on('pointerdown', () => draw(true));
-  box.on('pointerout', () => draw(false));
+  const spring = (scale, ease, duration) => {
+    scene.tweens.killTweensOf(box);
+    scene.tweens.add({ targets: box, scale, ease, duration });
+  };
+  box.on('pointerover', () => spring(B.hoverScale, 'Quad.easeOut', 120));
+  box.on('pointerdown', () => {
+    draw(true);
+    spring(B.pressScale, 'Quad.easeOut', 70);
+  });
+  box.on('pointerout', () => {
+    draw(false);
+    spring(1, 'Quad.easeOut', 120);
+  });
   box.on('pointerup', () => {
     draw(false);
+    spring(1, 'Back.easeOut', 260);
     onClick();
   });
+  box.once('destroy', () => scene.tweens.killTweensOf(box));
   box.label = text;
   return box;
 }

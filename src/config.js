@@ -526,6 +526,12 @@ export const TERRAIN = {
   roadEdge: 0x4e4130,
   roadShoulder: 0x6e7a4a,
   rut: 0x957c5a,
+  roadRise: 6,          // px — высота насыпи дороги (передний откос виден в 3/4)
+  roadSide: 0x6e5838,   // откос насыпи
+  roadLight: 0xd8c4a0,  // светлый верх полотна
+  stoneDark: 0x8a8070,
+  puddles: 7,
+  puddle: 0x6aa0c8,
   stone: 0xc8bca8,
   wall: 0x9a9284,
   roofTile: 0x8a4a38,
@@ -647,6 +653,9 @@ export const DRAW = {
   trenchRadius: 24,
   trenchWidth: 8,
   mineRadius: 7,
+  padSquash: 0.62,      // площадки под постройки в 3/4 — эллипс
+  padH: 5,              // толщина плиты
+  wireLift: 6,          // px — спираль проволоки приподнята над дорогой
   soldierRadius: 8,
   nestGunH: 8,         // px — высота станка пулемёта над землёй (ствол рисуется оттуда)
   hpOffset: { goblin: 30, spearman: 34, berserker: 44, soldier: 28, nest: 26 },

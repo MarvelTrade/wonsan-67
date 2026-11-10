@@ -38,18 +38,22 @@ export function drawTerrain(g, world) {
     g.lineBetween(x, y, x + R(14, 34), y);
   }
 
-  // дорога: обочина, полотно, колеи, камни
+  // дорога в 3/4 — насыпь: тень, передний откос (полотно, сдвинутое вниз на высоту насыпи), обочина,
+  // верх полотна, светлая кромка сверху, колеи, камни с тенью, лужи с бликом
   const pts = map.road;
-  const stroke = (w, color, alpha = 1) => {
+  const H = P.roadRise;
+  const stroke = (w, color, alpha = 1, dy = 0) => {
     g.lineStyle(w, color, alpha);
     g.beginPath();
-    pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+    pts.forEach(([x, y], i) => (i ? g.lineTo(x, y + dy) : g.moveTo(x, y + dy)));
     g.strokePath();
-    for (const [x, y] of pts) g.fillStyle(color, alpha).fillCircle(x, y, w / 2);
+    for (const [x, y] of pts) g.fillStyle(color, alpha).fillCircle(x, y + dy, w / 2);
   };
-  stroke(map.roadWidth + 14, P.roadShoulder, 0.6);
-  stroke(map.roadWidth + 4, P.roadEdge);
-  stroke(map.roadWidth, P.road);
+  stroke(map.roadWidth + 18, P.roadShoulder, 0.55, H + 2);     // тень насыпи на траве
+  stroke(map.roadWidth + 6, P.roadSide, 1, H);                // передний откос
+  stroke(map.roadWidth + 6, P.roadEdge, 1, 0);                // бровка
+  stroke(map.roadWidth, P.road, 1, 0);                        // полотно
+  stroke(map.roadWidth * 0.55, P.roadLight, 0.35, -map.roadWidth * 0.12); // свет на выпуклом верху
   // колеи — две полосы вдоль
   for (const off of [-map.roadWidth * 0.22, map.roadWidth * 0.22]) {
     for (let d = 0; d < path.length; d += 6) {
@@ -61,9 +65,24 @@ export function drawTerrain(g, world) {
       g.lineStyle(3, P.rut, 0.55).lineBetween(a.x + (nx / len) * off, a.y + (ny / len) * off, b.x + (nx / len) * off, b.y + (ny / len) * off);
     }
   }
+  // камни: тень, бок, светлый верх
   for (let i = 0; i < P.stones; i++) {
     const p = path.at(R(0, path.length));
-    g.fillStyle(P.stone, 0.8).fillCircle(p.x + R(-18, 18), p.y + R(-18, 18), R(1.5, 3.5));
+    const x = p.x + R(-18, 18);
+    const y = p.y + R(-16, 16);
+    const r = R(1.5, 3.2);
+    g.fillStyle(0x000000, 0.25).fillEllipse(x + 1, y + r * 0.8, r * 2.4, r * 1.2);
+    g.fillStyle(P.stoneDark).fillEllipse(x, y + r * 0.3, r * 2, r * 1.5);
+    g.fillStyle(P.stone).fillEllipse(x - r * 0.2, y - r * 0.15, r * 1.6, r * 1.1);
+  }
+  // лужи — синие с белым бликом (манхва любит блики)
+  for (let i = 0; i < P.puddles; i++) {
+    const p = path.at(R(40, path.length - 40));
+    const x = p.x + R(-10, 10);
+    const y = p.y + R(-8, 8);
+    const w = R(12, 22);
+    g.fillStyle(P.puddle, 0.85).fillEllipse(x, y, w, w * 0.45);
+    g.fillStyle(0xffffff, 0.7).fillEllipse(x - w * 0.18, y - w * 0.06, w * 0.35, w * 0.1);
   }
 
   // что занято: дорога, места построек, люди, убежище, грузовик, врата — там не сажаем деревья

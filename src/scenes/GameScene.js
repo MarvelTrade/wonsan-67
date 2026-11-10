@@ -384,11 +384,16 @@ export class GameScene extends Phaser.Scene {
     const placed = drawTerrain(g, this.world);
     for (const p of placed.houses) this.prop(p.kind, p.x, p.y, p.flip);
     for (const p of placed.trees) this.prop(p.kind, p.x, p.y, false);
-    // Места под постройку — бетонные площадки
+    // Места под постройку — бетонные плиты в 3/4: тень, торец (толщина), верх, светлая кромка
     for (const s of this.world.slots) {
-      g.fillStyle(0x000000, 0.25).fillCircle(s.x + 3, s.y + 4, DRAW.slotRadius + 4);
-      g.fillStyle(PROPS.concreteDark).fillCircle(s.x, s.y, DRAW.slotRadius + 4);
-      g.fillStyle(PROPS.concrete).fillCircle(s.x - 1, s.y - 1, DRAW.slotRadius);
+      const r = DRAW.slotRadius + 4;
+      const k = DRAW.padSquash;
+      const h = DRAW.padH;
+      g.fillStyle(0x000000, 0.25).fillEllipse(s.x + 3, s.y + h + 3, r * 2.1, r * 2 * k + 4);
+      g.fillStyle(PROPS.concreteDark).fillEllipse(s.x, s.y + h, r * 2, r * 2 * k);
+      g.fillRect(s.x - r, s.y, r * 2, h);
+      g.fillStyle(PROPS.concrete).fillEllipse(s.x, s.y, r * 2, r * 2 * k);
+      g.lineStyle(1, PROPS.concreteLight, 0.8).strokeEllipse(s.x, s.y - 1, r * 1.8, r * 1.8 * k);
     }
     this.prop('bunker', MAP.shelter.x, MAP.shelter.y + MAP.shelter.h * 0.3, false);
     // Зона приёма людей у грузовика — пунктирный круг
@@ -408,6 +413,7 @@ export class GameScene extends Phaser.Scene {
     const g = this.g;
     const MAP = this.map;
     g.clear();
+    this.topG.clear(); // в начале кадра: на нём рисуют и проволока, и фигуры
 
     // Врата — вращаются и по реальному времени, даже на паузе подготовки
     drawGate(g, MAP.gate, this.time.now / 1000);
@@ -423,23 +429,39 @@ export class GameScene extends Phaser.Scene {
       const len = Math.hypot(nx, ny) || 1;
       const ox = (nx / len) * DRAW.wireWidth / 2;
       const oy = (ny / len) * DRAW.wireWidth / 2;
-      g.lineStyle(2, COLORS.wire, alpha);
-      const steps = 7;
+      // спирали «Бруно» поперёк дороги на кольях, в 3/4: колья вверх, кольца приподняты над землёй;
+      // рисуем поверх фигур (topG) — застрявшие враги видны «в проволоке»
+      const t2 = this.topG;
+      const steps = 4;
+      const lift = DRAW.wireLift;
       for (let i = 0; i <= steps; i++) {
         const p = w.path.at(wire.d0 + (wire.d1 - wire.d0) * (i / steps));
-        g.lineBetween(p.x - ox, p.y - oy, p.x + ox, p.y + oy);
+        g.fillStyle(0x000000, 0.18).fillEllipse(p.x + 2, p.y + 3, DRAW.wireWidth + 6, 8);
+        for (const sgn of [-1, 1]) {
+          t2.lineStyle(2, 0x5a4430, alpha).lineBetween(p.x + sgn * ox, p.y + sgn * oy, p.x + sgn * ox, p.y + sgn * oy - lift * 1.8);
+        }
+        t2.lineStyle(1.5, COLORS.wire, alpha);
+        for (let k = -2; k <= 2; k++) {
+          const cx = p.x + (ox * k) / 2.4;
+          const cy = p.y + (oy * k) / 2.4 - lift;
+          t2.strokeEllipse(cx, cy, 9, 11);
+        }
       }
-      g.lineBetween(a.x - ox, a.y - oy, b.x - ox, b.y - oy);
-      g.lineBetween(a.x + ox, a.y + oy, b.x + ox, b.y + oy);
-      this.hpBar(g, (a.x + b.x) / 2, (a.y + b.y) / 2 - DRAW.wireWidth / 2 - 6, wire.hp / wire.maxHp);
+      this.hpBar(t2, (a.x + b.x) / 2, (a.y + b.y) / 2 - DRAW.wireWidth / 2 - lift * 2 - 6, wire.hp / wire.maxHp);
     }
 
     // Мины: тёмный кругляш на дороге, огонёк мигает
     for (const m of w.mines) {
       if (!m.alive) continue;
-      g.fillStyle(COLORS.mine).fillCircle(m.x, m.y, DRAW.mineRadius);
-      g.lineStyle(1, COLORS.mineLight, 0.5).strokeCircle(m.x, m.y, BUILD.mine.radius);
-      if (Math.sin(w.t * 6) > 0) g.fillStyle(COLORS.mineLight).fillCircle(m.x, m.y, DRAW.mineRadius * 0.35);
+      // колпак в 3/4: тень, корпус, светлый верх, взрыватели-усики, мигающий огонёк
+      const mr = DRAW.mineRadius;
+      g.lineStyle(1, COLORS.mineLight, 0.45).strokeCircle(m.x, m.y, BUILD.mine.radius);
+      g.fillStyle(0x000000, 0.3).fillEllipse(m.x + 2, m.y + 3, mr * 2.6, mr * 1.2);
+      g.fillStyle(COLORS.mine).fillEllipse(m.x, m.y, mr * 2.4, mr * 1.5);
+      g.fillStyle(0x4a4a40).fillEllipse(m.x - 1, m.y - mr * 0.35, mr * 1.6, mr * 0.9);
+      g.lineStyle(1.5, 0x8a8a80);
+      for (const dx of [-0.5, 0, 0.5]) g.lineBetween(m.x + dx * mr, m.y - mr * 0.4, m.x + dx * mr * 1.3, m.y - mr * 1.2);
+      if (Math.sin(w.t * 6) > 0) g.fillStyle(COLORS.mineLight).fillCircle(m.x, m.y - mr * 0.5, mr * 0.3);
     }
 
     // Артудар в пути: метка цели сжимается к разрыву
@@ -453,7 +475,6 @@ export class GameScene extends Phaser.Scene {
     // ---------- спрайты в ракурсе 3/4: пул картинок, глубина по y (кто ниже — тот ближе) ----------
     this.poolI = 0;
     const top = this.topG;
-    top.clear();
     const now = this.time.now / 1000;
     const bob = (id) => Math.abs(Math.sin(now * SPRITES.bobSpeed + id)) * SPRITES.bob;
 

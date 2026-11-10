@@ -1,5 +1,5 @@
 // Вся логика забега без Phaser: её гоняет и сцена в браузере, и бот в Node (scripts/sim.mjs).
-import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW, STARS, CALL_EARLY, ABILITIES, SYSTEM, CORES } from '../config.js';
+import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW, STARS, CALL_EARLY, ABILITIES, SYSTEM, CORES, ELITE } from '../config.js';
 import { Path, rng } from './path.js';
 
 // Границы мира — по размеру экрана (мир = экран)
@@ -72,7 +72,7 @@ export class World {
       leaked: 0,
       calledEarly: 0, earlyBonus: 0,
       abilityUsed: { artillery: 0, reinforce: 0 }, soldiersLost: 0,
-      coresDropped: 0, coresTaken: 0,
+      coresDropped: 0, coresTaken: 0, elitesKilled: 0,
     };
   }
 
@@ -157,7 +157,7 @@ export class World {
     w.elapsed += dt;
     for (const s of w.spawns) {
       while (s.left > 0 && w.elapsed >= s.next) {
-        this.spawnEnemy(s.type);
+        this.spawnEnemy(s.type, s.left <= s.elite); // последние elite из группы — элитные
         s.left--;
         s.next += s.every;
       }
@@ -208,7 +208,7 @@ export class World {
     const def = this.waves.list[index];
     this.wave = {
       index, phase: 'wave', timer: 0, elapsed: 0,
-      spawns: def.groups.map((g) => ({ type: g.type, left: g.count, every: g.every, next: g.at })),
+      spawns: def.groups.map((g) => ({ type: g.type, left: g.count, every: g.every, next: g.at, elite: g.elite || 0 })),
     };
     this.events.push({ type: 'waveStart', index });
   }
@@ -219,13 +219,14 @@ export class World {
     return w.phase === 'wave' ? w.index + 1 : w.index + 2;
   }
 
-  spawnEnemy(type) {
+  spawnEnemy(type, elite = false) {
     const cfg = ENEMIES[type];
-    this.events.push({ type: 'spawn', enemy: type });
+    const hp = cfg.hp * (elite ? ELITE.hp : 1);
+    this.events.push({ type: 'spawn', enemy: type, elite });
     const p = this.path.at(0);
     this.enemies.push({
       id: this.nextId++, type, d: 0, x: p.x, y: p.y,
-      hp: cfg.hp, maxHp: cfg.hp, stabT: 0, hurtT: 0, slowed: false, stabAt: null,
+      hp, maxHp: hp, elite, stabT: 0, hurtT: 0, slowed: false, stabAt: null,
       state: 'road', goal: null, smashT: 0, // берсерк: road → charge → return
       // небольшой разброс поперёк дороги, чтобы пачка не сливалась в точку
       lane: (this.rand() - 0.5) * 18,
@@ -376,7 +377,7 @@ export class World {
       const blocker = this.blockerFor(e);
       e.blocked = !!blocker;
       if (blocker) {
-        blocker.hp -= (cfg.melee || 0) * dt;
+        blocker.hp -= (cfg.melee || 0) * this.hitMul(e) * dt;
         continue;
       }
       const wire = this.wireAt(e.d);
@@ -385,7 +386,7 @@ export class World {
         wire.hp -= BUILD.wire.damagePerEnemy * dt;
         if (wire.lastBy !== 'berserker') wire.lastBy = 'trample';
       }
-      e.d += cfg.speed * (wire ? BUILD.wire.slow : 1) * dt;
+      e.d += cfg.speed * this.speedMul(e) * (wire ? BUILD.wire.slow : 1) * dt;
       const p = this.path.at(e.d);
       e.x = p.x;
       e.y = p.y + e.lane;
@@ -398,7 +399,7 @@ export class World {
           if (tower) {
             e.stabT = cfg.stabEvery;
             e.stabAt = { x: tower.x, y: tower.y, t: 0.18 };
-            tower.hp -= cfg.stabDamage;
+            tower.hp -= cfg.stabDamage * this.hitMul(e);
             this.events.push({ type: 'stab', x: tower.x, y: tower.y });
             if (tower.hp <= 0) this.breakTower(tower, e.type);
           } else e.stabT = 0;
@@ -413,13 +414,22 @@ export class World {
     }
     if (leaked.length) {
       for (const e of leaked) {
-        this.shelter.hp -= ENEMIES[e.type].shelterDamage;
+        this.shelter.hp -= ENEMIES[e.type].shelterDamage * (e.elite ? ELITE.shelter : 1);
         this.stats.leaked++;
-        this.events.push({ type: 'leak', enemy: e.type });
+        this.events.push({ type: 'leak', enemy: e.type, elite: e.elite });
       }
       this.enemies = this.enemies.filter((e) => !leaked.includes(e));
       this.shelter.hp = Math.max(0, this.shelter.hp);
     }
+  }
+
+  // Элитный: множители скорости и ударов
+  speedMul(e) {
+    return e.elite ? ELITE.speed : 1;
+  }
+
+  hitMul(e) {
+    return e.elite ? ELITE.hit : 1;
   }
 
   // Берсерк. Возвращает true, пока он не на дороге (тогда обычное движение по дороге пропускаем).
@@ -439,14 +449,14 @@ export class World {
       } else {
         const dist = Math.hypot(g.x - e.x, g.y - e.y);
         if (dist > cfg.smashReach) {
-          this.moveTo(e, g.x, g.y, cfg.chargeSpeed * dt);
+          this.moveTo(e, g.x, g.y, cfg.chargeSpeed * this.speedMul(e) * dt);
         } else {
           e.smashT -= dt;
           if (e.smashT <= 0) {
             e.smashT = cfg.smashEvery;
             e.stabAt = { x: g.x, y: g.y, t: 0.25 };
             this.events.push({ type: 'smash', x: g.x, y: g.y });
-            g.ref.hp -= cfg.smashDamage;
+            g.ref.hp -= cfg.smashDamage * this.hitMul(e);
             if (g.kind === 'tower' && g.ref.hp <= 0) this.breakTower(g.ref, e.type);
             if (g.kind === 'wire') g.ref.lastBy = 'berserker';
           }
@@ -460,12 +470,12 @@ export class World {
     if (e.state === 'return') {
       const p = this.path.at(e.d);
       const back = { x: p.x, y: p.y + e.lane };
-      if (Math.hypot(back.x - e.x, back.y - e.y) <= cfg.chargeSpeed * dt) {
+      if (Math.hypot(back.x - e.x, back.y - e.y) <= cfg.chargeSpeed * this.speedMul(e) * dt) {
         e.state = 'road';
         e.goal = null;
         e.x = back.x;
         e.y = back.y;
-      } else this.moveTo(e, back.x, back.y, cfg.chargeSpeed * dt);
+      } else this.moveTo(e, back.x, back.y, cfg.chargeSpeed * this.speedMul(e) * dt);
     }
     e.slowed = false;
     return e.state !== 'road';
@@ -769,10 +779,12 @@ export class World {
     }
     this.enemies = this.enemies.filter((x) => x !== e);
     this.stats.kills[e.type]++;
-    this.gainXp(SYSTEM.xp[e.type] || 0);
+    this.gainXp((SYSTEM.xp[e.type] || 0) * (e.elite ? ELITE.xp : 1));
+    if (e.elite) this.stats.elitesKilled++;
     this.stats.killsBy[from]++;
-    this.events.push({ type: 'kill', x: e.x, y: e.y, enemy: e.type });
-    if (this.coreRand() < (CORES.chance[e.type] || 0)) {
+    this.events.push({ type: 'kill', x: e.x, y: e.y, enemy: e.type, elite: e.elite });
+    // элитный роняет ядро всегда; coreRand тянем в любом случае — чтобы не сбить остальные броски
+    if (this.coreRand() < (e.elite ? 1 : CORES.chance[e.type] || 0)) {
       const a = this.coreRand() * Math.PI * 2;
       const r = this.coreRand() * CORES.scatter;
       this.cores.push({ id: this.nextId++, x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r, life: CORES.life });
@@ -815,6 +827,7 @@ export class World {
       calledEarly: s.calledEarly,
       earlyBonus: s.earlyBonus,
       abilityUsed: s.abilityUsed,
+      elitesKilled: s.elitesKilled,
       coresDropped: s.coresDropped,
       coresTaken: s.coresTaken,
       heroLevel: this.heroLevel,

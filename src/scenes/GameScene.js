@@ -1,7 +1,7 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM, CORES } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM, CORES, ELITE } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
@@ -368,6 +368,8 @@ export class GameScene extends Phaser.Scene {
     const r = this.radio;
     const L = this.levelId;
     if (e.type === 'waveStart') r.say(`l${L}_w${e.index + 1}`);
+    else if (e.type === 'spawn' && e.elite) r.say('elite');
+    else if (e.type === 'kill' && e.elite) r.say('elite_down');
     else if (e.type === 'spawn' && e.enemy !== 'goblin') r.say(`first_${e.enemy}`);
     else if (e.type === 'towerBroken') r.say(`broken_${e.by}`);
     else if (e.type === 'wireBroken' && e.by === 'berserker') {
@@ -389,7 +391,7 @@ export class GameScene extends Phaser.Scene {
   consumeEvents() {
     for (const e of this.world.events) {
       this.radioFor(e);
-      if (e.type === 'spawn' && !this.bot) this.queueCard('enemy', e.enemy);
+      if (e.type === 'spawn' && !this.bot) this.queueCard(e.elite ? 'elite' : 'enemy', e.enemy);
       if (e.type === 'kill') this.parts.death(e.x, e.y, COLORS[e.enemy]);
       else if (e.type === 'hit') this.parts.sparks(e.x, e.y - 8, FX.spark, 3);
       else if (e.type === 'spawn') this.parts.portal(this.map.gate.x, this.map.gate.y, this.map.gate.r);
@@ -592,14 +594,17 @@ export class GameScene extends Phaser.Scene {
       const cfg = ENEMIES[e.type];
       const ahead = e.goal && e.state === 'charge' ? e.goal : w.path.at(e.d + 8);
       const flip = ahead.x < e.x;
-      const img = this.spr(e.type, e.x, e.y - (e.blocked ? 0 : bob(e.id)), flip);
+      // элитный: крупнее, под ним пульсирует красное свечение
+      const sc = (SPRITES.keyScale[e.type] ?? SPRITES.scale) * (e.elite ? ELITE.scale : 1);
+      if (e.elite) g.fillStyle(ELITE.aura, ELITE.auraAlpha * (0.75 + 0.25 * Math.sin(w.t * 6 + e.id))).fillEllipse(e.x, e.y, cfg.radius * ELITE.auraR * 2.2, cfg.radius * ELITE.auraR * 1.1);
+      const img = this.spr(e.type, e.x, e.y - (e.blocked ? 0 : bob(e.id)), flip, sc);
       if (e.hurtT > 0) img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
       if (e.type === 'berserker' && e.stabAt) img.setRotation(flip ? -0.3 : 0.3);
       if (e.type === 'spearman' && e.stabAt) {
         top.lineStyle(3, 0xc8ccd0).lineBetween(e.x, e.y - 14, e.stabAt.x, e.stabAt.y - 6);
       }
       if (e.slowed || e.blocked) g.lineStyle(1, COLORS.wire, 0.8).strokeCircle(e.x, e.y, cfg.radius + 4);
-      if (e.hp < e.maxHp) this.hpBar(top, e.x, e.y - DRAW.hpOffset[e.type], e.hp / e.maxHp, DRAW.hpBarW * 0.6);
+      if (e.hp < e.maxHp) this.hpBar(top, e.x, e.y - DRAW.hpOffset[e.type] * (e.elite ? ELITE.scale : 1), e.hp / e.maxHp, DRAW.hpBarW * (e.elite ? 0.9 : 0.6));
     }
     this.hidePool();
 

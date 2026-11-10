@@ -196,6 +196,21 @@ export const ENEMIES = {
   },
 };
 
+// Элитные враги (жанр: обычный / элитный). В волне — последние `elite` из группы. Крупнее, светятся,
+// крепче и бьют сильнее; ядро роняют всегда, опыта — втрое. Поведение то же, что у обычных.
+// Замер 2026-11-10 (элитные в последних волнах, 40/30 забегов): ур.1 1t1w 0/40, 2t1w 38/40, trap 11/40 (было 17/40 —
+// элитный копейщик под проволокой добивает пушку быстрее); ур.2 2t1w2e 27/30, 3t0w3e 30/30, 3t1w 0/30;
+// ур.3 без мин 8/30, 3t1w3e4m 27/30, 6m 29/30, minetrap 0/30.
+export const ELITE = {
+  hp: 2.5,        // множитель здоровья
+  speed: 0.9,     // множитель скорости (и бега берсерка)
+  hit: 1.5,       // множитель ударов: копьё, топор, драка с бойцами
+  shelter: 2,     // множитель урона убежищу при прорыве
+  xp: 3,          // множитель опыта системы
+  // картинка
+  scale: 1.3, aura: 0xff4a7a, auraAlpha: 0.5, auraR: 1.9, // 0.32 на траве почти не видно
+};
+
 export const SHELTER = {
   hp: 10,
 };
@@ -297,7 +312,7 @@ const WAVES_1 = {
     ] },
     { groups: [
       { type: 'goblin', count: 38, every: 0.64, at: 0 },
-      { type: 'spearman', count: 17, every: 1.6, at: 3 },
+      { type: 'spearman', count: 17, every: 1.6, at: 3, elite: 2 },
     ] },
   ],
 };
@@ -369,8 +384,8 @@ const WAVES_2 = {
     ] },
     { groups: [
       { type: 'goblin', count: 32, every: 0.7, at: 0 },
-      { type: 'spearman', count: 11, every: 2, at: 3 },
-      { type: 'berserker', count: 5, every: 5, at: 6 },
+      { type: 'spearman', count: 11, every: 2, at: 3, elite: 2 },
+      { type: 'berserker', count: 5, every: 5, at: 6, elite: 1 },
     ] },
   ],
 };
@@ -434,13 +449,13 @@ const WAVES_3 = {
     ] },
     { groups: [
       { type: 'goblin', count: 34, every: 0.35, at: 0 },
-      { type: 'spearman', count: 12, every: 0.6, at: 7 },
+      { type: 'spearman', count: 12, every: 0.6, at: 7, elite: 2 },
       { type: 'berserker', count: 3, every: 2, at: 12 },
     ] },
     { groups: [
       { type: 'goblin', count: 44, every: 0.3, at: 0 },
       { type: 'spearman', count: 18, every: 0.5, at: 5 },
-      { type: 'berserker', count: 6, every: 1.6, at: 10 },
+      { type: 'berserker', count: 6, every: 1.6, at: 10, elite: 2 },
     ] },
   ],
 };

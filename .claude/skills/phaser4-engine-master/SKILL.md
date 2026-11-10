@@ -8,6 +8,14 @@ description: Phaser 4 + Vite engine expert for Wonsan-67 — rendering, depth/la
 Stack: Phaser 4.2, plain JavaScript, Vite 8. The simulation (`src/sim/World.js`) knows nothing about Phaser;
 `GameScene` reads the world each frame and draws it. Keep it that way — logic in World, pixels in scenes.
 
+## Official Phaser skills (installed next to this one)
+Before writing filters, lighting, Noise/Gradient objects, CaptureFrame, SpriteGPULayer/TilemapGPULayer or masks,
+read the official skill instead of writing from memory — the Phaser 4 API differs a lot from Phaser 3:
+`../filters-and-postfx/SKILL.md` (Glow, Blur, ColorMatrix, Displacement, masks as filters),
+`../v4-new-features/SKILL.md` (RenderNodes, Noise, Gradient, GPU layers, `setLighting(true)`, tint modes),
+`../v3-to-v4-migration/SKILL.md` (what was removed or renamed). Installed by the author's plan
+(`npx skills add phaserjs/phaser --skill … --agent claude-code`); versions pinned in `skills-lock.json`.
+
 ## Phaser 4 gotchas we have already hit
 - **`setTintFill` is gone.** Use `img.setTint(c).setTintMode(Phaser.TintModes.FILL)`; reset with
   `clearTint().setTintMode(Phaser.TintModes.MULTIPLY)`. Pooled sprites must be reset or the white flash sticks.

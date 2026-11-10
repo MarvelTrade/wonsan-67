@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "filters-and-postfx": {
+      "source": "phaserjs/phaser",
+      "sourceType": "github",
+      "skillPath": "skills/filters-and-postfx/SKILL.md",
+      "computedHash": "202a8e2f75c501d2799d16b606cf6afbcf15aa27cb1a8ad5e50705b03fa28390"
+    },
+    "v3-to-v4-migration": {
+      "source": "phaserjs/phaser",
+      "sourceType": "github",
+      "skillPath": "skills/v3-to-v4-migration/SKILL.md",
+      "computedHash": "f924579f61b1d691209ed3299b3ae81e3d21e0e005e82182d277ece90e821866"
+    },
+    "v4-new-features": {
+      "source": "phaserjs/phaser",
+      "sourceType": "github",
+      "skillPath": "skills/v4-new-features/SKILL.md",
+      "computedHash": "cf435ba5df67acfaa55b346e0922357a0df47e232084a3b2e2a09e8fcfc60b5b"
+    }
+  }
+}

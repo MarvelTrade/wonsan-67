@@ -8,6 +8,7 @@ import { T } from '../texts.js';
 import { saveRun } from '../telemetry.js';
 import { markWin, wasSeen, markSeen, markQuests } from '../progress.js';
 import { loadSettings, setSetting } from '../settings.js';
+import { Tutorial } from '../ui/Tutorial.js';
 import { Dossier } from '../ui/Dossier.js';
 import { SystemWindow } from '../ui/SystemWindow.js';
 import { drawTerrain } from '../art/terrain.js';
@@ -157,6 +158,8 @@ export class GameScene extends Phaser.Scene {
       fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.dmgSize}px`, fontStyle: 'bold', color: '#f4f0e4', stroke: '#14101c', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(5.6).setVisible(false));
     this.dmgLive = [];
+    // подсказки первого запуска — только человеку
+    this.tutorial = this.bot ? null : new Tutorial(this);
 
     if (import.meta.env.DEV) window.__world = this.world;
   }
@@ -211,6 +214,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.dragging = true;
+    this.tutorial?.done('drag');
     this.world.heli.target = { x, y };
     this.hint.setText('');
   }
@@ -224,6 +228,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   openMenu(slot, kinds) {
+    this.tutorial?.done('tap');
     const w = DRAW.menuW;
     const h = DRAW.menuH;
     const gap = DRAW.menuGap;
@@ -389,6 +394,7 @@ export class GameScene extends Phaser.Scene {
       const dx = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
       const dy = (k.S.isDown || k.DOWN.isDown ? 1 : 0) - (k.W.isDown || k.UP.isDown ? 1 : 0);
       w.heli.dir = dx || dy ? { x: dx, y: dy } : null;
+      if (dx || dy) this.tutorial?.done('drag');
     }
     this.acc += Math.min(delta, 100) / 1000 * SPEED;
     while (this.acc >= SIM.dt && !w.over) {
@@ -742,6 +748,7 @@ export class GameScene extends Phaser.Scene {
     this.fx = this.fx.filter((fx) => fx.t > 0);
     this.parts.update(dt);
     this.updateDamage(dt);
+    this.tutorial?.update(dt, w, !!(this.paused || this.card || this.menu || this.world.over));
     this.drawAmbient();
 
     // Меню постройки
@@ -879,7 +886,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.bossText.setVisible(!!b && !this.card);
     // подсказка внизу прячется под полосой босса и под титрами; при прицеливании — видна всегда
-    this.hint.setVisible(!!this.aiming || (!b && !this.radio.active));
+    this.hint.setVisible(!!this.aiming || (!b && !this.radio.active && !this.tutorial?.active));
     if (!b || this.card) return;
     this.bossText.setText(T.bossBar(T.dossier.bosses[b.type].name));
     const x0 = VIEW.width / 2 - BOSS.barW / 2;

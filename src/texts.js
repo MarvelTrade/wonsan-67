@@ -207,6 +207,8 @@ export const T = {
   level: (n) => `Ур. ${n}`,
   gateRank: (r) => `врата ранга ${r}`,
   rankShort: (r) => `ранг ${r}`,
+  // подсказки первого запуска — по два слова
+  tutorial: { drag: 'Веди пальцем', tap: 'Тапни по кругу' },
   dmgToggle: (on) => `Цифры урона: ${on ? 'вкл' : 'выкл'}`,
   crates: {
     medkit: { name: 'Аптечка', effect: 'убежищу +1' },

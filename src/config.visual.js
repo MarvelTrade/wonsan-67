@@ -148,6 +148,16 @@ export const GATE_RANKS = {
   S: { color: 0x1a1a1a },
 };
 
+// Подсказки первого запуска (src/ui/Tutorial.js, план фазы 1): палец и два слова. Только картинка.
+export const TUTORIAL = {
+  color: 0xffd860,
+  finger: 14,           // радиус подушечки пальца
+  labelSize: 26,        // на телефоне лёжа ≈ 13 px
+  labelLift: 46,        // подпись над вертолётом / местом
+  dragLoop: 1.6,        // с — палец ведёт от вертолёта к человеку
+  tapLoop: 1.1,         // с — палец нажимает на место
+};
+
 // Обложка тома (src/scenes/CoverScene.js): раскладка панелей манхвы и живых врат. Только картинка.
 export const COVER = {
   gutter: 14, border: 4, paper: '#f2ede2', ink: '#0e0b18',

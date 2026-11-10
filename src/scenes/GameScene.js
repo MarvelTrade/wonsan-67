@@ -88,7 +88,8 @@ export class GameScene extends Phaser.Scene {
       this.input.keyboard.on('keydown-P', () => this.setPaused(!this.paused));
     }
     // заголовок серии — над деревьями, на плашке
-    const lt = this.add.text(VIEW.width / 2, pad + 4, this.world.level.title, { ...style, fontSize: `${DRAW.fontSize * 0.8}px`, color: COLORS.text })
+    const lvl = this.world.level;
+    const lt = this.add.text(VIEW.width / 2, pad + 4, lvl.rank ? `${lvl.title} · ${T.gateRank(lvl.rank)}` : lvl.title, { ...style, fontSize: `${DRAW.fontSize * 0.8}px`, color: COLORS.text })
       .setOrigin(0.5, 0).setDepth(15);
     this.add.graphics().setDepth(14).fillStyle(COLORS.panel, 0.6)
       .fillRoundedRect(lt.x - lt.width / 2 - 12, lt.y - 4, lt.width + 24, lt.height + 8, 8);
@@ -809,7 +810,7 @@ export class GameScene extends Phaser.Scene {
     panel.lineStyle(1, COLORS.paperEdge, 0.5).lineBetween(x0 + 24, y0 + 58, x0 + W - 24, y0 + 58);
     const type = (x, y, s, size, color = COLORS.ink, extra = {}) =>
       this.add.text(x, y, s, { fontFamily: '"Courier New", Courier, monospace', fontSize: `${size}px`, color, ...extra }).setDepth(21);
-    type(x0 + 28, y0 + 20, `${T.report.header} · ${this.world.level.title}`, DRAW.resultSmall);
+    type(x0 + 28, y0 + 20, `${T.report.header} · ${this.world.level.title}${this.world.level.rank ? ` · ${T.gateRank(this.world.level.rank)}` : ''}`, DRAW.resultSmall);
     // штамп
     // штамп: всегда ярко-зелёный (выполнено) или красный (провалено); крупно по-корейски, снизу — по-русски и по-английски
     this.makeStamp(x0 + W - 150, y0 + 112, win);

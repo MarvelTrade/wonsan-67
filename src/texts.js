@@ -157,6 +157,7 @@ export const T = {
     },
   },
   level: (n) => `Ур. ${n}`,
+  gateRank: (r) => `врата ранга ${r}`,
   callEarly: (n, bonus) => `▶ Волна ${n}${bonus ? ` · +${bonus} чел.` : ''}`,
   summary: (r) => {
     const by = r.brokenBy || {};

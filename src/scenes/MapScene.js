@@ -1,6 +1,6 @@
 // Карта серий: побережье, серии слева направо. Пройденная открывает следующую.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, LEVELS, SPEAKERS, DRAW, SPRITES, WORLD_MAP as M } from '../config.js';
+import { VIEW, COLORS, LEVELS, SPEAKERS, DRAW, SPRITES, WORLD_MAP as M, GATE_RANKS } from '../config.js';
 import { T } from '../texts.js';
 import { loadProgress, unlockedCount } from '../progress.js';
 import { copyStats, statsText } from '../ui/copyStats.js';
@@ -99,6 +99,17 @@ export class MapScene extends Phaser.Scene {
       g.fillStyle(fill).fillCircle(x, y, M.nodeRadius);
       g.lineStyle(3, 0x101410, 0.6).strokeCircle(x, y, M.nodeRadius);
       text(x, y, unlocked ? String(level.id) : T.locked, M.nodeFont, '#101410');
+      // ранг врат — ромб справа сверху у кружка
+      if (level.rank) {
+        const rx = x + M.nodeRadius * 0.82;
+        const ry = y - M.nodeRadius * 0.62;
+        const s = M.rankSize;
+        const pts = [rx, ry - s, rx + s, ry, rx, ry + s, rx - s, ry];
+        g.fillStyle(0x000000, 0.35).fillPoints([{ x: rx + 2, y: ry - s + 3 }, { x: rx + s + 2, y: ry + 3 }, { x: rx + 2, y: ry + s + 3 }, { x: rx - s + 2, y: ry + 3 }], true);
+        g.fillStyle(unlocked ? GATE_RANKS[level.rank].color : 0x555a55).fillPoints([{ x: pts[0], y: pts[1] }, { x: pts[2], y: pts[3] }, { x: pts[4], y: pts[5] }, { x: pts[6], y: pts[7] }], true);
+        g.lineStyle(2, 0xf4f0e4, 0.9).strokePoints([{ x: pts[0], y: pts[1] }, { x: pts[2], y: pts[3] }, { x: pts[4], y: pts[5] }, { x: pts[6], y: pts[7] }], true);
+        text(rx, ry, level.rank, M.rankFont, '#f4f0e4').setDepth(2);
+      }
       // звёзды — на тёмной «таблетке» над кружком, пустые видны контуром
       if (won) {
         const sy = y - M.nodeRadius - DRAW.mapStar - 10;
@@ -109,7 +120,7 @@ export class MapScene extends Phaser.Scene {
       // подпись: название серии и состояние — на плашке, чтобы читались поверх арта
       const [series, name] = level.title.split(' · ');
       const t1 = text(x, y + M.nodeRadius + 26, name || level.title, M.labelFont, unlocked ? COLORS.text : COLORS.textDim);
-      const t2 = text(x, y + M.nodeRadius + 54, `${series.toLowerCase()} · ${won ? T.mapWon : unlocked ? T.mapOpen : T.mapLocked}`, M.labelFont * 0.72, COLORS.textDim);
+      const t2 = text(x, y + M.nodeRadius + 54, `${series.toLowerCase()} · ${level.rank ? `${T.gateRank(level.rank)} · ` : ''}${won ? T.mapWon : unlocked ? T.mapOpen : T.mapLocked}`, M.labelFont * 0.72, COLORS.textDim);
       const pw = Math.max(t1.width, t2.width) + 28;
       g.fillStyle(0x101410, 0.7).fillRoundedRect(x - pw / 2, y + M.nodeRadius + 8, pw, 64, 10);
 

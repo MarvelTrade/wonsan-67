@@ -465,9 +465,9 @@ const BOT_3 = {
 
 // Уровни идут слева направо по побережью. builds — что можно строить на уровне.
 export const LEVELS = [
-  { id: 1, title: 'Серия 2 · Проволока', map: MAP_1, waves: WAVES_1, builds: ['tower', 'wire'], abilities: ['artillery'], bot: BOT_1 },
-  { id: 2, title: 'Серия 3 · Окоп', map: MAP_2, waves: WAVES_2, survivors: SURVIVORS_2, builds: ['tower', 'wire', 'trench'], abilities: ['artillery', 'reinforce'], bot: BOT_2 },
-  { id: 3, title: 'Серия 4 · Мины', map: MAP_3, waves: WAVES_3, survivors: SURVIVORS_3, builds: ['tower', 'wire', 'trench', 'mine'], abilities: ['artillery', 'reinforce'], bot: BOT_3 },
+  { id: 1, title: 'Серия 2 · Проволока', rank: 'E', map: MAP_1, waves: WAVES_1, builds: ['tower', 'wire'], abilities: ['artillery'], bot: BOT_1 },
+  { id: 2, title: 'Серия 3 · Окоп', rank: 'D', map: MAP_2, waves: WAVES_2, survivors: SURVIVORS_2, builds: ['tower', 'wire', 'trench'], abilities: ['artillery', 'reinforce'], bot: BOT_2 },
+  { id: 3, title: 'Серия 4 · Мины', rank: 'C', map: MAP_3, waves: WAVES_3, survivors: SURVIVORS_3, builds: ['tower', 'wire', 'trench', 'mine'], abilities: ['artillery', 'reinforce'], bot: BOT_3 },
 ];
 
 // Общее для бота на всех уровнях
@@ -550,6 +550,19 @@ export const WORLD_MAP = {
   titleSize: 64,
   nodeFont: 40,
   labelFont: 26,
+  // ранг врат (жанр: шкала опасности, которую ставит институт) — значок-ромб у кружка серии
+  rankSize: 24,
+  rankFont: 26,
+};
+
+// Ранги врат: только подпись и цвет, на правила не влияют (LEVELS[].rank).
+export const GATE_RANKS = {
+  E: { color: 0x3a9a5a },
+  D: { color: 0x3a7ac8 },
+  C: { color: 0x8a4ad8 },
+  B: { color: 0xc8892a },
+  A: { color: 0xc83a3a },
+  S: { color: 0x1a1a1a },
 };
 
 // Фон уровня (src/art/terrain.js): палитра и плотность. Только картинка.

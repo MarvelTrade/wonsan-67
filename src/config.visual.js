@@ -395,7 +395,7 @@ export const DRAW = {
   hudAlpha: 0.55,       // подложка HUD
   hudLeftW: 400,
   hudRightW: 240,
-  callEarlyGap: 14,     // кнопка «волна раньше» — под вратами
+  callEarlyGap: 12,     // кнопка «волна раньше» — в верхней полосе, левее паузы (у врат была в игровой зоне)
   fxTime: 0.35,         // с — вспышки попаданий и смертей
   gatePulse: 2.5,       // рад/с
   resultRestartDelay: 2.5, // с — бот с ?runs=N перезапускает забег сам

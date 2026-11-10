@@ -69,9 +69,8 @@ export class GameScene extends Phaser.Scene {
         size: DRAW.fontSize, depth: 16, padX: 16, padY: 7, minW: 56,
       });
       pauseBtn.setPosition(VIEW.width - HUD.margin - pauseBtn.width / 2, HUD.margin + pauseBtn.height / 2);
-      // «Вызвать волну раньше» — под вратами, пока идёт подготовка или перерыв
-      const gate = this.map.gate;
-      this.callBtn = this.add.text(gate.x + gate.r, gate.y + gate.r + DRAW.callEarlyGap, '', {
+      // «Вызвать волну раньше» — в верхней полосе левее паузы (зоны плана: верх — волна, центр — только игра)
+      this.callBtn = this.add.text(pauseBtn.x - pauseBtn.width / 2 - DRAW.callEarlyGap, HUD.margin, '', {
         ...style, color: '#101410', backgroundColor: '#d9b3ff', padding: { x: 14, y: 6 },
       }).setOrigin(1, 0).setDepth(16).setInteractive({ useHandCursor: true }).setVisible(false);
       this.callBtn.on('pointerdown', () => {

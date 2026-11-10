@@ -13,6 +13,9 @@
       -webkit-touch-callout: none;
       -webkit-tap-highlight-color: transparent;
     }
+    /* вырез камеры и скругления: игра вписывается внутрь безопасных полей (viewport-fit=cover выше) */
+    body { box-sizing: border-box; padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left); }
     #game { width: 100%; height: 100%; }
     /* Телефон стоя: игра горизонтальная — просим повернуть */
     #rotate { display: none; position: fixed; inset: 0; z-index: 5; background: #1d241f; color: #f4f0e4;

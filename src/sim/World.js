@@ -1,5 +1,5 @@
 // Вся логика забега без Phaser: её гоняет и сцена в браузере, и бот в Node (scripts/sim.mjs).
-import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW, STARS, CALL_EARLY } from '../config.js';
+import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW, STARS, CALL_EARLY, ABILITIES } from '../config.js';
 import { Path, rng } from './path.js';
 
 // Границы мира — по размеру экрана (мир = экран)
@@ -37,6 +37,10 @@ export class World {
     this.towers = [];
     this.wires = [];
     this.mines = [];
+    // Умения: перезарядка (с), залпы в пути, бойцы подкрепления на дороге
+    this.abilities = Object.fromEntries((this.level.abilities || []).map((id) => [id, { cd: 0 }]));
+    this.strikes = [];
+    this.soldiers = [];
     this.enemies = [];
     this.shots = [];
     this.survivors = [];
@@ -53,9 +57,10 @@ export class World {
       towersBuilt: 0, wiresBuilt: 0, trenchesBuilt: 0, minesBuilt: 0,
       minesTriggeredBy: {}, mineKills: 0,
       towersBroken: 0, brokenBy: {}, wiresBroken: 0, wiresBrokenBy: {},
-      kills: { goblin: 0, spearman: 0, berserker: 0 }, killsBy: { heli: 0, tower: 0, mine: 0 },
+      kills: { goblin: 0, spearman: 0, berserker: 0 }, killsBy: { heli: 0, tower: 0, mine: 0, artillery: 0, soldier: 0 },
       leaked: 0,
       calledEarly: 0, earlyBonus: 0,
+      abilityUsed: { artillery: 0, reinforce: 0 }, soldiersLost: 0,
     };
   }
 
@@ -114,6 +119,7 @@ export class World {
     this.updateWires();
     this.updateEnemies(dt);
     this.updateMines();
+    this.updateAbilities(dt);
     this.updateTowers(dt);
     this.updateShots(dt);
     this.updateHeliGun(dt);
@@ -340,6 +346,13 @@ export class World {
       e.hurtT = Math.max(0, e.hurtT - dt);
       // Берсерк вне дороги: бежит к постройке, рубит её или возвращается
       if (e.type === 'berserker' && this.updateBerserker(e, cfg, dt)) continue;
+      // Боец подкрепления впереди на дороге — стоим и деремся
+      const blocker = this.blockerFor(e);
+      e.blocked = !!blocker;
+      if (blocker) {
+        blocker.hp -= (cfg.melee || 0) * dt;
+        continue;
+      }
       const wire = this.wireAt(e.d);
       e.slowed = !!wire;
       if (wire) {
@@ -489,6 +502,92 @@ export class World {
     this.events.push({ type: 'towerBroken', slot: tower.slot, by });
   }
 
+  // ---------- Умения ----------
+  canUse(id) {
+    const a = this.abilities[id];
+    return !!a && a.cd <= 0 && !this.over;
+  }
+
+  // Залп по точке: разрывы через delay, урон только врагам
+  useArtillery(x, y) {
+    if (!this.canUse('artillery')) return false;
+    const cfg = ABILITIES.artillery;
+    this.abilities.artillery.cd = cfg.cooldown;
+    this.strikes.push({ x, y, t: cfg.delay });
+    this.stats.abilityUsed.artillery++;
+    this.events.push({ type: 'artilleryCalled', x, y });
+    return true;
+  }
+
+  // Подкрепление: бойцы встают на дорогу в ближайшей к точке позиции
+  useReinforce(x, y) {
+    if (!this.canUse('reinforce')) return false;
+    const cfg = ABILITIES.reinforce;
+    const near = this.path.nearest(x, y);
+    this.abilities.reinforce.cd = cfg.cooldown;
+    for (let i = 0; i < cfg.count; i++) {
+      const d = Math.max(0, Math.min(this.path.length, near.d + (i - (cfg.count - 1) / 2) * cfg.spacing));
+      const p = this.path.at(d);
+      this.soldiers.push({ id: this.nextId++, d, x: p.x, y: p.y, hp: cfg.hp, maxHp: cfg.hp, life: cfg.life, alive: true, aim: 0 });
+    }
+    this.stats.abilityUsed.reinforce++;
+    this.events.push({ type: 'reinforce', x: near.x, y: near.y });
+    return true;
+  }
+
+  // Ближайший живой боец впереди врага на дороге (берсерк вне дороги их не замечает)
+  blockerFor(e) {
+    if (!this.soldiers.length || (e.state && e.state !== 'road')) return null;
+    const range = ABILITIES.reinforce.blockRange;
+    let best = null;
+    for (const s of this.soldiers) {
+      if (!s.alive) continue;
+      const ahead = s.d - e.d;
+      if (ahead >= 0 && ahead <= range && (!best || s.d < best.d)) best = s;
+    }
+    return best;
+  }
+
+  updateAbilities(dt) {
+    for (const a of Object.values(this.abilities)) a.cd = Math.max(0, a.cd - dt);
+    // залпы
+    for (const st of this.strikes) {
+      st.t -= dt;
+      if (st.t > 0) continue;
+      const cfg = ABILITIES.artillery;
+      this.events.push({ type: 'shell', x: st.x, y: st.y });
+      for (const e of [...this.enemies]) if (Math.hypot(e.x - st.x, e.y - st.y) <= cfg.radius) this.hit(e, cfg.damage, 'artillery');
+    }
+    this.strikes = this.strikes.filter((st) => st.t > 0);
+    // бойцы: бьют того, кого держат (или ближайшего рядом), стареют, гибнут
+    const cfg = ABILITIES.reinforce;
+    for (const s of this.soldiers) {
+      if (!s.alive) continue;
+      s.life -= dt;
+      let target = null;
+      for (const e of this.enemies) {
+        if (e.state && e.state !== 'road') continue;
+        const gap = s.d - e.d;
+        if (gap >= -cfg.blockRange && gap <= cfg.blockRange * 1.5 && (!target || e.d > target.d)) target = e;
+      }
+      if (target) {
+        s.aim = Math.atan2(target.y - s.y, target.x - s.x);
+        target.hp -= cfg.dps * dt;
+        target.hurtT = 0.05;
+        if (target.hp <= 0) this.hit(target, 0, 'soldier');
+      }
+      if (s.hp <= 0) {
+        s.alive = false;
+        this.stats.soldiersLost++;
+        this.events.push({ type: 'soldierDown', x: s.x, y: s.y });
+      } else if (s.life <= 0) {
+        s.alive = false;
+        this.events.push({ type: 'soldierLeft', x: s.x, y: s.y });
+      }
+    }
+    this.soldiers = this.soldiers.filter((s) => s.alive);
+  }
+
   // ---------- Мины ----------
   // Взрывается под первым, кто на дороге наступил ближе trigger. Бьёт всех в радиусе — и своих тоже.
   updateMines() {
@@ -608,6 +707,8 @@ export class World {
       stars: this.stars,
       calledEarly: s.calledEarly,
       earlyBonus: s.earlyBonus,
+      abilityUsed: s.abilityUsed,
+      soldiersLost: s.soldiersLost,
       duration: Math.round(this.t),
     };
   }

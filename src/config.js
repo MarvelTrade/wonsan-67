@@ -53,6 +53,10 @@ export const COLORS = {
   textDim: '#a8a89a',
   panel: 0x101410,
   star: 0xffd447,
+  soldier: 0x8fa6b8,
+  shell: 0xff7a2e,
+  abilityReady: 0xd9b3ff,
+  abilityCd: 0x4a4a52,
   starEmpty: 0x3a3f36,
   paper: 0xe9dfc4,      // досье
   paperEdge: 0x9c8c66,
@@ -159,12 +163,14 @@ export const ENEMIES = {
     radius: 9,
     shelterDamage: 1,
     reach: 0,           // постройки не трогает
+    melee: 6,           // урон в секунду по бойцу подкрепления
   },
   spearman: {
     hp: 95,
     speed: 48,
     radius: 11,
     shelterDamage: 2,
+    melee: 10,
     reach: 62,          // копьё достаёт постройку с дороги, если та ближе этого
     stabDamage: 6,      // урон за удар (11 → 6: при 11 пушки ломались в каждом забеге при любой расстановке)
     stabEvery: 1.2,     // с между ударами; бьёт на ходу, не останавливаясь
@@ -178,6 +184,7 @@ export const ENEMIES = {
     chargeSpeed: 105,   // бегом к постройке и обратно
     radius: 13,
     shelterDamage: 3,
+    melee: 22,
     reach: 0,           // копья нет
     chargeRange: 150,   // видит постройку не дальше этого от себя
     smashReach: 26,     // бьёт, когда подбежал ближе этого
@@ -194,6 +201,28 @@ export const SHELTER = {
 export const STARS = {
   three: 9,             // убежище ≥ 9 из 10 — три звезды
   two: 5,               // ≥ 5 — две, меньше — одна
+};
+
+// Умения с перезарядкой. Кнопки слева внизу; нажал кнопку — потом точку на карте.
+// Замер 2026-11-10 (бот с +a, 30 забегов): умения помогают, но укреплений не заменяют. Уровень 1: 2t0w 23→27/30,
+// trap 0→7/30; уровень 2: без окопов 0/30 и с умениями; уровень 3: без мин 0/30, с минами 30/30, мина под пушкой 0/30.
+// Первая версия (залп 130 урона раз в 40 с, бойцы 90 hp на 15 с) проходила уровень 3 вовсе без мин — ослаблено.
+export const ABILITIES = {
+  artillery: {          // «Артудар института»: залп по точке через delay, бьёт только врагов
+    cooldown: 60,
+    delay: 1.6,         // с от нажатия до разрывов — надо целиться с упреждением
+    radius: 85,
+    damage: 80,
+  },
+  reinforce: {          // «Подкрепление»: двое бойцов у дороги держат её, пока живы
+    cooldown: 35,
+    count: 2,
+    spacing: 16,        // px вдоль дороги между бойцами
+    life: 10,           // с, потом их забирают
+    hp: 60,
+    dps: 14,            // урон бойца в секунду по тому, с кем дерётся
+    blockRange: 18,     // враг ближе этого по дороге — остановлен и дерётся
+  },
 };
 
 // «Вызвать волну раньше»: за каждые perSeconds, оставшиеся до волны, — один человек, не больше maxBonus.
@@ -386,13 +415,16 @@ const BOT_3 = {
 
 // Уровни идут слева направо по побережью. builds — что можно строить на уровне.
 export const LEVELS = [
-  { id: 1, title: 'Серия 2 · Проволока', map: MAP_1, waves: WAVES_1, builds: ['tower', 'wire'], bot: BOT_1 },
-  { id: 2, title: 'Серия 3 · Окоп', map: MAP_2, waves: WAVES_2, survivors: SURVIVORS_2, builds: ['tower', 'wire', 'trench'], bot: BOT_2 },
-  { id: 3, title: 'Серия 4 · Мины', map: MAP_3, waves: WAVES_3, survivors: SURVIVORS_3, builds: ['tower', 'wire', 'trench', 'mine'], bot: BOT_3 },
+  { id: 1, title: 'Серия 2 · Проволока', map: MAP_1, waves: WAVES_1, builds: ['tower', 'wire'], abilities: ['artillery'], bot: BOT_1 },
+  { id: 2, title: 'Серия 3 · Окоп', map: MAP_2, waves: WAVES_2, survivors: SURVIVORS_2, builds: ['tower', 'wire', 'trench'], abilities: ['artillery', 'reinforce'], bot: BOT_2 },
+  { id: 3, title: 'Серия 4 · Мины', map: MAP_3, waves: WAVES_3, survivors: SURVIVORS_3, builds: ['tower', 'wire', 'trench', 'mine'], abilities: ['artillery', 'reinforce'], bot: BOT_3 },
 ];
 
 // Общее для бота на всех уровнях
 export const BOT = {
+  artilleryMin: 4,      // бот с +a: залп, только если под ним будет столько врагов
+  reinforceFrom: 0.5,   // подкрепление — когда головной враг прошёл эту долю дороги
+  reinforceAhead: 60,   // …и на столько впереди него
   guardOffset: 70,      // где бот висит в бою: чуть впереди головного врага по дороге
 };
 
@@ -463,6 +495,10 @@ export const DRAW = {
   trenchRadius: 24,
   trenchWidth: 8,
   mineRadius: 7,
+  soldierRadius: 8,
+  abilityR: 40,         // кнопки умений
+  abilityGap: 16,
+  abilityBottom: 76,    // от нижнего края до низа кнопок умений (над морем и подсказкой)
   heliLength: 60,
   heliWidth: 16,
   rotorRadius: 34,

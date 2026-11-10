@@ -1,13 +1,14 @@
 // Досье «Сектора 67»: карточка «Новый враг» / «Новое укрепление». Бумага, штамп, рисунок слева,
 // текст на машинке справа, кнопка «Принято». Пока карточка открыта, сцена держит игру на паузе.
-import { VIEW, COLORS, DOSSIER as D, ENEMIES, BUILD } from '../config.js';
+import { VIEW, COLORS, DOSSIER as D, ENEMIES, BUILD, ABILITIES } from '../config.js';
 import { T } from '../texts.js';
 
 export class Dossier {
   // entry: { kind: 'enemy' | 'build', id } ; onClose — когда нажали «Принято»
   constructor(scene, entry, onClose) {
     this.scene = scene;
-    const info = entry.kind === 'enemy' ? T.dossier.enemies[entry.id] : T.dossier.builds[entry.id];
+    const book = { enemy: T.dossier.enemies, build: T.dossier.builds, ability: T.dossier.abilities }[entry.kind];
+    const info = book[entry.id];
     const cx = VIEW.width / 2;
     const cy = VIEW.height / 2;
     const x0 = cx - D.width / 2;
@@ -36,7 +37,8 @@ export class Dossier {
     const type = (s, size, color = COLORS.ink, extra = {}) =>
       scene.add.text(0, 0, s, { fontFamily: '"Courier New", Courier, monospace', fontSize: `${size}px`, color, ...extra });
     add(type(T.dossier.header, D.small).setPosition(x0 + D.pad, y0 + 22));
-    add(type(entry.kind === 'enemy' ? T.dossier.newEnemy : T.dossier.newBuild, D.small, COLORS.inkRed, { fontStyle: 'bold' })
+    const heading = { enemy: T.dossier.newEnemy, build: T.dossier.newBuild, ability: T.dossier.newAbility }[entry.kind];
+    add(type(heading, D.small, COLORS.inkRed, { fontStyle: 'bold' })
       .setPosition(x0 + D.pad, y0 + 22 + D.small + 6));
     add(type(T.dossier.stamp, D.small, '#a8322a', { fontStyle: 'bold' }).setOrigin(0.5).setPosition(sx + 55, sy + 20).setRotation(-0.08));
 
@@ -77,6 +79,19 @@ export class Dossier {
           g.lineStyle(3, 0x000000, 0.5).strokeCircle(x, y, r * 1.4);
         } else g.fillStyle(COLORS.goblin).fillCircle(ex, ey, r);
       }
+    } else if (entry.id === 'artillery') {
+      const r = ABILITIES.artillery.radius * 0.9;
+      g.fillStyle(COLORS.shell, 0.35).fillCircle(x, y, r);
+      g.lineStyle(3, COLORS.shell).strokeCircle(x, y, r);
+      g.lineBetween(x - r * 0.4, y, x + r * 0.4, y).lineBetween(x, y - r * 0.4, x, y + r * 0.4);
+      for (const [dx, dy] of [[-0.4, -0.3], [0.35, 0.2], [-0.1, 0.45]]) g.fillStyle(COLORS.goblin).fillCircle(x + dx * r, y + dy * r, 9);
+    } else if (entry.id === 'reinforce') {
+      g.fillStyle(COLORS.road).fillRect(x - D.picture / 2 + 6, y - 22, D.picture - 12, 44);
+      for (const dx of [-14, 14]) {
+        g.lineStyle(4, 0x2a2a20).lineBetween(x + dx, y, x + dx + 34, y);
+        g.fillStyle(COLORS.soldier).fillCircle(x + dx, y, 14);
+      }
+      g.fillStyle(COLORS.goblin).fillCircle(x + 70, y, 11).fillCircle(x + 92, y - 8, 11);
     } else if (entry.id === 'trench') {
       const s = 26 * k * 0.6;
       g.lineStyle(10 * k * 0.5, COLORS.trench).strokeCircle(x, y, s * 1.1);

@@ -2,7 +2,7 @@
 // План: '2t1w' — 2 пушки и 1 проволока; '3t1w2e' — ещё 2 окопа у первых двух пушек;
 // '3t1w3e4m' — и 4 раза положить мину (место — первое свободное из order.mine в момент постройки).
 // Места — по порядку из bot.order уровня; именованные планы ('trap') — из bot.plans.
-import { BOT, HELI } from '../config.js';
+import { BOT, HELI, ABILITIES, ENEMIES } from '../config.js';
 
 export function parsePlan(spec, bot) {
   if (bot.plans[spec]) return bot.plans[spec].map((b) => ({ ...b }));
@@ -49,9 +49,40 @@ export function parsePlan(spec, bot) {
 }
 
 export class Bot {
-  constructor(world, spec) {
+  // '+a' в конце плана — бот пользуется умениями (артудар, подкрепление)
+  constructor(world, spec = '') {
     this.world = world;
-    this.queue = parsePlan(spec, world.level.bot) || [];
+    this.useAbilities = spec.endsWith('+a');
+    this.queue = parsePlan(spec.replace(/\+a$/, ''), world.level.bot) || [];
+  }
+
+  // Артудар — туда, где через delay будет самая плотная пачка (не меньше BOT.artilleryMin врагов);
+  // подкрепление — перед головным врагом, когда тот прошёл половину дороги
+  castAbilities() {
+    const w = this.world;
+    if (w.canUse('artillery')) {
+      const cfg = ABILITIES.artillery;
+      const future = w.enemies.filter((e) => !e.state || e.state === 'road')
+        .map((e) => w.path.at(e.d + ENEMIES[e.type].speed * cfg.delay));
+      let best = null;
+      let bestN = BOT.artilleryMin - 1;
+      for (const p of future) {
+        const n = future.filter((q) => Math.hypot(q.x - p.x, q.y - p.y) <= cfg.radius).length;
+        if (n > bestN) {
+          bestN = n;
+          best = p;
+        }
+      }
+      if (best) w.useArtillery(best.x, best.y);
+    }
+    if (w.canUse('reinforce')) {
+      let lead = null;
+      for (const e of w.enemies) if ((!e.state || e.state === 'road') && (!lead || e.d > lead.d)) lead = e;
+      if (lead && lead.d > w.path.length * BOT.reinforceFrom) {
+        const p = w.path.at(lead.d + BOT.reinforceAhead);
+        w.useReinforce(p.x, p.y);
+      }
+    }
   }
 
   step() {
@@ -74,6 +105,7 @@ export class Bot {
         this.queue.splice(i, 1);
       }
     }
+    if (this.useAbilities) this.castAbilities();
     w.heli.target = this.heliTarget();
   }
 

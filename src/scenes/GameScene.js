@@ -1,7 +1,7 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
@@ -91,12 +91,32 @@ export class GameScene extends Phaser.Scene {
     this.radio = new Radio(this);
     this.radio.say(`l${this.levelId}_start`);
 
-    // Досье: новые укрепления этого уровня (которых не было на прошлом) — сразу; новые враги — при первой встрече
+    // Умения: круглые кнопки слева внизу, клавиши 1/2; нажал кнопку — потом точку на карте
+    this.aiming = null;
+    this.abilityG = this.add.graphics().setDepth(16);
+    this.abilityBtns = (this.world.level.abilities || []).map((id, i) => {
+      const r = DRAW.abilityR;
+      const x = DRAW.hudPad + r + i * (r * 2 + DRAW.abilityGap);
+      const y = VIEW.height - DRAW.abilityBottom - r;
+      const zone = this.add.zone(x, y, r * 2, r * 2).setInteractive({ useHandCursor: true }).setDepth(16);
+      if (!BOT_PLAN) zone.on('pointerdown', () => this.toggleAim(id));
+      const label = this.add.text(x, y + r + 4, `${i + 1} · ${T.abilityShort[id]}`, {
+        ...style, fontSize: `${DRAW.fontSize * 0.6}px`,
+      }).setOrigin(0.5, 0).setDepth(16).setShadow(1, 1, '#000', 3);
+      return { id, x, y, zone, label };
+    });
+    if (!BOT_PLAN) {
+      this.abilityBtns.forEach((b, i) => this.input.keyboard.on(`keydown-${['ONE', 'TWO', 'THREE'][i]}`, () => this.toggleAim(b.id)));
+      this.input.on('pointermove', (p) => (this.aimAt = { x: p.worldX, y: p.worldY }));
+    }
+
+    // Досье: новые укрепления и умения этого уровня (которых не было на прошлом) — сразу; враги — при первой встрече
     this.cards = [];
     this.card = null;
     if (!BOT_PLAN) {
       const prev = LEVELS.find((l) => l.id === this.levelId - 1);
       for (const b of this.world.level.builds) if (prev && !prev.builds.includes(b)) this.queueCard('build', b);
+      for (const a of this.world.level.abilities || []) if (!(prev?.abilities || []).includes(a)) this.queueCard('ability', a);
       this.openNextCard();
     }
 
@@ -124,6 +144,10 @@ export class GameScene extends Phaser.Scene {
     if (this.world.over || this.paused || this.card || over?.length) return;
     const x = p.worldX;
     const y = p.worldY;
+    if (this.aiming) {
+      this.useAbility(this.aiming, x, y);
+      return;
+    }
     if (this.menu) {
       const btn = this.menu.buttons.find((b) => Phaser.Geom.Rectangle.Contains(b.rect, x, y));
       const slotId = this.menu.slot.id;
@@ -169,6 +193,61 @@ export class GameScene extends Phaser.Scene {
   closeMenu() {
     this.menu = null;
     for (const t of this.menuTexts) t.setVisible(false);
+  }
+
+  // ---------- Умения ----------
+  toggleAim(id) {
+    if (this.paused || this.card || this.world.over) return;
+    if (this.aiming === id) {
+      this.aiming = null;
+      return;
+    }
+    if (!this.world.canUse(id)) return;
+    this.closeMenu();
+    this.aiming = id;
+    this.world.heli.target = null;
+    this.dragging = false;
+    this.hint.setText(T.aim[id]);
+  }
+
+  useAbility(id, x, y) {
+    const ok = id === 'artillery' ? this.world.useArtillery(x, y) : this.world.useReinforce(x, y);
+    this.aiming = null;
+    this.hint.setText('');
+    return ok;
+  }
+
+  drawAbilities() {
+    const g = this.abilityG;
+    g.clear();
+    const w = this.world;
+    for (const b of this.abilityBtns) {
+      const r = DRAW.abilityR;
+      const a = w.abilities[b.id];
+      const ready = a.cd <= 0;
+      g.fillStyle(0x000000, 0.4).fillCircle(b.x + 3, b.y + 4, r);
+      g.fillStyle(ready ? COLORS.abilityReady : COLORS.abilityCd).fillCircle(b.x, b.y, r);
+      // перезарядка — тёмный сектор, тает по часовой
+      if (!ready) {
+        const k = a.cd / ABILITIES[b.id].cooldown;
+        g.fillStyle(0x000000, 0.45).slice(b.x, b.y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k, false).fillPath();
+      }
+      g.lineStyle(this.aiming === b.id ? 5 : 3, this.aiming === b.id ? 0xffffff : 0x101410, 0.9).strokeCircle(b.x, b.y, r);
+      // значок
+      if (b.id === 'artillery') {
+        g.lineStyle(3, 0x101410).strokeCircle(b.x, b.y, r * 0.45);
+        g.lineBetween(b.x - r * 0.7, b.y, b.x + r * 0.7, b.y).lineBetween(b.x, b.y - r * 0.7, b.x, b.y + r * 0.7);
+      } else {
+        g.fillStyle(0x101410).fillCircle(b.x - r * 0.25, b.y, r * 0.22).fillCircle(b.x + r * 0.25, b.y, r * 0.22);
+        g.lineStyle(3, 0x101410).lineBetween(b.x - r * 0.25, b.y, b.x - r * 0.25, b.y - r * 0.6).lineBetween(b.x + r * 0.25, b.y, b.x + r * 0.25, b.y - r * 0.6);
+      }
+      b.label.setAlpha(ready ? 1 : 0.6);
+    }
+    // прицел под пальцем/мышью
+    if (this.aiming && this.aimAt) {
+      const rad = this.aiming === 'artillery' ? ABILITIES.artillery.radius : ABILITIES.reinforce.blockRange * 2;
+      g.lineStyle(2, 0xffffff, 0.8).strokeCircle(this.aimAt.x, this.aimAt.y, rad);
+    }
   }
 
   // ---------- Досье ----------
@@ -268,6 +347,9 @@ export class GameScene extends Phaser.Scene {
     else if (e.type === 'survivorLost') r.say('lost');
     else if (e.type === 'drop') r.say('drop_first');
     else if (e.type === 'leak') r.say('leak');
+    else if (e.type === 'artilleryCalled') r.say('artillery');
+    else if (e.type === 'reinforce') r.say('reinforce');
+    else if (e.type === 'soldierDown') r.say('soldier_down');
   }
 
   consumeEvents() {
@@ -283,7 +365,11 @@ export class GameScene extends Phaser.Scene {
       else if (e.type === 'boom') {
         this.fx.push({ kind: 'boom', x: e.x, y: e.y, t: DRAW.fxTime * 2 });
         this.cameras.main.shake(150, 0.006);
-      } else if (e.type === 'smash') this.fx.push({ kind: 'smash', x: e.x, y: e.y, t: DRAW.fxTime });
+      } else if (e.type === 'shell') {
+        this.fx.push({ kind: 'shell', x: e.x, y: e.y, t: DRAW.fxTime * 2 });
+        this.cameras.main.shake(180, 0.008);
+      } else if (e.type === 'reinforce') this.fx.push({ kind: 'drop', x: e.x, y: e.y, t: DRAW.fxTime * 2 });
+      else if (e.type === 'smash') this.fx.push({ kind: 'smash', x: e.x, y: e.y, t: DRAW.fxTime });
       else if (e.type === 'leak') this.cameras.main.shake(120, 0.004);
     }
     this.world.events.length = 0;
@@ -355,6 +441,23 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(COLORS.mine).fillCircle(m.x, m.y, DRAW.mineRadius);
       g.lineStyle(1, COLORS.mineLight, 0.5).strokeCircle(m.x, m.y, BUILD.mine.radius);
       if (Math.sin(w.t * 6) > 0) g.fillStyle(COLORS.mineLight).fillCircle(m.x, m.y, DRAW.mineRadius * 0.35);
+    }
+
+    // Артудар в пути: метка цели сжимается к разрыву
+    for (const st of w.strikes) {
+      const k = st.t / ABILITIES.artillery.delay;
+      g.lineStyle(3, COLORS.shell, 0.9).strokeCircle(st.x, st.y, ABILITIES.artillery.radius * (0.3 + 0.7 * k));
+      g.lineStyle(1, COLORS.shell, 0.5).strokeCircle(st.x, st.y, ABILITIES.artillery.radius);
+      g.lineBetween(st.x - 12, st.y, st.x + 12, st.y).lineBetween(st.x, st.y - 12, st.x, st.y + 12);
+    }
+
+    // Бойцы подкрепления
+    for (const s of w.soldiers) {
+      const r = DRAW.soldierRadius;
+      g.lineStyle(3, 0x2a2a20).lineBetween(s.x, s.y, s.x + Math.cos(s.aim) * r * 2.2, s.y + Math.sin(s.aim) * r * 2.2);
+      g.fillStyle(COLORS.soldier).fillCircle(s.x, s.y, r);
+      g.lineStyle(2, 0x101410, 0.7).strokeCircle(s.x, s.y, r);
+      this.hpBar(g, s.x, s.y - r - 7, s.hp / s.maxHp, DRAW.hpBarW * 0.6);
     }
 
     // Места под постройку
@@ -451,6 +554,9 @@ export class GameScene extends Phaser.Scene {
       else if (fx.kind === 'boom') {
         f.fillStyle(COLORS.blast, 0.55 * Math.min(1, k)).fillCircle(fx.x, fx.y, BUILD.mine.radius * (1.1 - 0.4 * Math.min(1, k / 2)));
         f.lineStyle(3, COLORS.mineLight, Math.min(1, k)).strokeCircle(fx.x, fx.y, BUILD.mine.radius);
+      } else if (fx.kind === 'shell') {
+        f.fillStyle(COLORS.shell, 0.5 * Math.min(1, k)).fillCircle(fx.x, fx.y, ABILITIES.artillery.radius * (1.1 - 0.3 * Math.min(1, k / 2)));
+        f.lineStyle(4, COLORS.blast, Math.min(1, k)).strokeCircle(fx.x, fx.y, ABILITIES.artillery.radius);
       } else if (fx.kind === 'smash') f.lineStyle(4, COLORS.berserker, k).strokeCircle(fx.x, fx.y, DRAW.towerSize * (1.4 - 0.5 * k));
       else if (fx.kind === 'drop') f.lineStyle(3, COLORS.truck, Math.min(1, k)).strokeCircle(fx.x, fx.y, HELI.dropRadius * (1.4 - 0.2 * k));
     }
@@ -504,6 +610,7 @@ export class GameScene extends Phaser.Scene {
     this.hudPeople.setText(T.people(w.people));
     this.hudBoard.setText(T.onboard(w.heli.carrying, HELI.capacity));
     this.hudShelter.setText(T.shelter(w.shelter.hp, w.shelter.maxHp));
+    this.drawAbilities();
     if (this.callBtn) {
       const show = w.canCallEarly;
       this.callBtn.setVisible(show);

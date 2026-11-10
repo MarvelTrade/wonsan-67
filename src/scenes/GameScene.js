@@ -166,6 +166,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, VIEW.width, VIEW.height); // наезд у края карты не показывает пустоту за ней
     this.bossG = this.add.graphics().setDepth(14.6);
     this.hitStop = 0;
+    this.manifest = new Map(); // id пушки → время «проявления» (мс)
     this.cine = null;
     this.flashRect = this.add.rectangle(VIEW.width / 2, VIEW.height / 2, VIEW.width * 2, VIEW.height * 2, COLORS.gate, 0).setDepth(4.9);
 
@@ -496,6 +497,12 @@ export class GameScene extends Phaser.Scene {
       if (e.type === 'kill' && e.boss) this.parts.explosion(e.x, e.y, 70);
       if (e.type === 'kill' && (e.elite || e.boss)) this.hitStop = Math.max(this.hitStop, e.boss ? JUICE.hitStopBoss : JUICE.hitStopElite);
       if (e.type === 'waveStart') this.gateFlash();
+      if (e.type === 'build' && e.kind === 'tower') {
+        const s = this.world.slots.find((sl) => sl.id === e.slot);
+        const t = s?.building?.ref;
+        if (t) this.manifest.set(t.id, this.time.now);
+        if (s) this.parts.manifest(s.x, s.y);
+      }
       if (e.type === 'spawn' && e.boss && !this.bot) this.bossIntro();
       else if (e.type === 'hit') this.parts.sparks(e.x, e.y - 8, FX.spark, 3);
       else if (e.type === 'spawn') this.parts.portal(this.map.gate.x, this.map.gate.y, this.map.gate.r);
@@ -704,7 +711,17 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(DRAW.trenchWidth, COLORS.trench).strokeCircle(t.x, t.y, DRAW.trenchRadius);
         g.lineStyle(2, COLORS.trenchEdge).strokeCircle(t.x, t.y, DRAW.trenchRadius + DRAW.trenchWidth / 2);
       }
-      this.spr('nest', t.x, t.y, false);
+      const nest = this.spr('nest', t.x, t.y, false);
+      // «проявление»: первые JUICE.manifestTime с гнездо — светлый силуэт, проступает и твердеет
+      const born = this.manifest.get(t.id);
+      if (born !== undefined) {
+        const k = (this.time.now - born) / 1000 / JUICE.manifestTime;
+        if (k < 1) {
+          if (k < 0.7) nest.setTint(JUICE.manifestColor).setTintMode(Phaser.TintModes.FILL);
+          nest.setAlpha(0.25 + 0.75 * Math.min(1, k * 1.4));
+          g.fillStyle(JUICE.manifestGlow, 0.35 * (1 - k)).fillEllipse(t.x, t.y, DRAW.towerSize * 2.6, DRAW.towerSize * 1.4);
+        } else this.manifest.delete(t.id);
+      }
       const gy = t.y - DRAW.nestGunH;
       top.lineStyle(5, 0x1c1c18).lineBetween(t.x, gy, t.x + Math.cos(t.aim) * DRAW.barrel, gy + Math.sin(t.aim) * DRAW.barrel * 0.6);
       top.fillStyle(0x2a2a26).fillCircle(t.x, gy, 5);

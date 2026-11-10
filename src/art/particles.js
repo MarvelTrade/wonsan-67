@@ -31,6 +31,17 @@ export class Particles {
     }
   }
 
+  // «проявление» пушки: искры сходятся с кольца в центр, кольцо света сжимается
+  manifest(x, y, r = 64) {
+    for (let i = 0; i < 20; i++) {
+      const s = (i / 20) * Math.PI * 2 + Math.random() * 0.3;
+      const d = r * (0.8 + Math.random() * 0.5);
+      const life = 0.45 + Math.random() * 0.2;
+      this.add({ x: x + Math.cos(s) * d, y: y + Math.sin(s) * d * 0.62 - 6, vx: (-Math.cos(s) * d) / life, vy: (-Math.sin(s) * d * 0.62) / life, life, size: 2.2, color: i % 2 ? F.portal : F.fireHot });
+    }
+    this.add({ kind: 'ring', x, y, life: 0.6, size: r, grow: -r * 0.85, color: F.portal, alpha: 0.9 });
+  }
+
   // гильза: латунная палочка вылетает вбок от гнезда, падает и гаснет
   casing(x, y) {
     const side = Math.random() < 0.5 ? -1 : 1;

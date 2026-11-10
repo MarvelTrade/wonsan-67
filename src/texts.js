@@ -78,6 +78,8 @@ export const T = {
     boss_leak: ['medic', 'Он дошёл до убежища… стены трещат.'],
     elite: ['institute', 'Из врат вышел светящийся. Элитный — бейте его всем, что есть.'],
     elite_down: ['sergeant', 'Светящийся лёг. С него ядро — забирай.'],
+    crate_drop: ['institute', 'Светящийся тащил наш ящик снабжения! Подберите, пока цел.'],
+    crate_taken: ['medic', 'Ящик у нас. Институт хоть что-то прислал.'],
     core_drop: ['institute', 'С гостя упало ядро. Подберите с воздуха — система откликнется.'],
     core_taken: ['medic', 'Ядро тёплое… Свет отзывается.'],
     perk_sergeant: ['sergeant', 'Чувствую — стволы слушаются лучше.'],
@@ -177,6 +179,12 @@ export const T = {
   level: (n) => `Ур. ${n}`,
   gateRank: (r) => `врата ранга ${r}`,
   rankShort: (r) => `ранг ${r}`,
+  crates: {
+    medkit: { name: 'Аптечка', effect: 'убежищу +1' },
+    volunteers: { name: 'Добровольцы', effect: '+2 чел.' },
+    flare: { name: 'Сигнальная ракета', effect: 'умения готовы' },
+    notice: (it) => `ЯЩИК СНАБЖЕНИЯ · ${it.name} · ${it.effect}`,
+  },
   bossBar: (name) => `БОСС ПРОРЫВА · ${name}`,
   // задания серии
   quests: {
@@ -219,7 +227,7 @@ export const T = {
       ...(r.minesBuilt ? [`Мины: взорвано ${Object.values(trig).reduce((a, b) => a + b, 0)} из ${r.minesBuilt}, под гоблинами ${trig.goblin || 0}, убито минами ${r.killsBy.mine || 0}`] : []),
       `Убито: ${kills.join(', ')}   Прорвалось: ${r.leaked}`,
       ...(r.quests?.length ? [T.quests.report(r.quests, T.quests.name)] : []),
-      ...(r.heroLevel ? [`Система: уровень ${r.heroLevel}   Ядер подобрано: ${r.coresTaken || 0} из ${r.coresDropped || 0}${r.elitesKilled ? `   Элитных: ${r.elitesKilled}` : ''}${r.bossKilled ? '   Босс свален' : r.bossLeaked ? '   Босс прорвался' : ''}`] : []),
+      ...(r.heroLevel ? [`Система: уровень ${r.heroLevel}   Ядер подобрано: ${r.coresTaken || 0} из ${r.coresDropped || 0}${r.elitesKilled ? `   Элитных: ${r.elitesKilled}` : ''}${r.bossKilled ? '   Босс свален' : r.bossLeaked ? '   Босс прорвался' : ''}${r.cratesTaken ? `   Ящиков: ${r.cratesTaken}` : ''}`] : []),
     ];
   },
 };

@@ -1,5 +1,5 @@
 // Вся логика забега без Phaser: её гоняет и сцена в браузере, и бот в Node (scripts/sim.mjs).
-import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW, STARS, CALL_EARLY, ABILITIES, SYSTEM, CORES, ELITE, BOSS } from '../config.js';
+import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW, STARS, CALL_EARLY, ABILITIES, SYSTEM, CORES, ELITE, BOSS, CRATES } from '../config.js';
 import { Path, rng } from './path.js';
 
 // Границы мира — по размеру экрана (мир = экран)
@@ -52,6 +52,9 @@ export class World {
     // Ядра на земле (свой генератор — прежние seed не сбиваются)
     this.cores = [];
     this.coreRand = rng((seed ^ 0xc0e367) >>> 0);
+    // Ящики снабжения (свой генератор)
+    this.crates = [];
+    this.crateRand = rng((seed ^ 0xc4a7e5) >>> 0);
     // Задания серии: open → done | failed
     this.quests = (this.level.quests || []).map((q) => ({ ...q, state: 'open' }));
     this.enemies = [];
@@ -74,7 +77,7 @@ export class World {
       leaked: 0,
       calledEarly: 0, earlyBonus: 0,
       abilityUsed: { artillery: 0, reinforce: 0 }, soldiersLost: 0,
-      coresDropped: 0, coresTaken: 0, elitesKilled: 0, bossKilled: 0, bossLeaked: 0,
+      coresDropped: 0, coresTaken: 0, cratesDropped: 0, cratesTaken: 0, elitesKilled: 0, bossKilled: 0, bossLeaked: 0,
     };
   }
 
@@ -321,6 +324,15 @@ export class World {
         this.events.push({ type: 'core', x: c.x, y: c.y });
       }
     }
+    // Ящики снабжения — пролётом, содержимое сразу в дело
+    for (const c of this.crates) {
+      if (Math.hypot(c.x - h.x, c.y - h.y) <= CRATES.pickupRadius) {
+        c.taken = true;
+        this.openCrate(c);
+      }
+    }
+    for (const c of this.crates) c.life -= dt;
+    this.crates = this.crates.filter((c) => !c.taken && c.life > 0);
     // Ядра гаснут
     for (const c of this.cores) c.life -= dt;
     this.cores = this.cores.filter((c) => !c.taken && c.life > 0);
@@ -435,6 +447,34 @@ export class World {
       this.enemies = this.enemies.filter((e) => !leaked.includes(e));
       this.shelter.hp = Math.max(0, this.shelter.hp);
     }
+  }
+
+  // ---------- Ящики снабжения ----------
+  dropCrate(e) {
+    const chance = CRATES.chance[e.tier] || 0;
+    if (!chance || this.crateRand() >= chance) return;
+    const items = Object.entries(CRATES.items);
+    let roll = this.crateRand() * items.reduce((a, [, it]) => a + it.weight, 0);
+    let item = items[0][0];
+    for (const [id, it] of items) {
+      roll -= it.weight;
+      if (roll < 0) {
+        item = id;
+        break;
+      }
+    }
+    this.crates.push({ id: this.nextId++, x: e.x, y: e.y + 6, life: CRATES.life, item });
+    this.stats.cratesDropped++;
+    this.events.push({ type: 'crateDrop', x: e.x, y: e.y });
+  }
+
+  openCrate(c) {
+    const it = CRATES.items[c.item];
+    if (it.shelter) this.shelter.hp = Math.min(this.shelter.maxHp, this.shelter.hp + it.shelter);
+    if (it.people) this.people += it.people;
+    if (it.abilities) for (const a of Object.values(this.abilities)) a.cd = 0;
+    this.stats.cratesTaken++;
+    this.events.push({ type: 'crate', x: c.x, y: c.y, item: c.item });
   }
 
   // ---------- Задания ----------
@@ -847,6 +887,7 @@ export class World {
     this.stats.killsBy[from]++;
     this.events.push({ type: 'kill', x: e.x, y: e.y, enemy: e.type, elite: e.elite, boss: e.boss });
     // элитный роняет ядро всегда; coreRand тянем в любом случае — чтобы не сбить остальные броски
+    if (e.tier) this.dropCrate(e);
     // босс — россыпь ядер (свой круг вокруг места гибели)
     if (e.boss) {
       for (let i = 0; i < BOSS.cores; i++) {
@@ -903,6 +944,8 @@ export class World {
       bossKilled: s.bossKilled,
       bossLeaked: s.bossLeaked,
       quests: this.quests.map((q) => ({ id: q.id, kind: q.kind, n: q.n, hidden: !!q.hidden, state: q.state })),
+      cratesDropped: s.cratesDropped,
+      cratesTaken: s.cratesTaken,
       coresDropped: s.coresDropped,
       coresTaken: s.coresTaken,
       heroLevel: this.heroLevel,

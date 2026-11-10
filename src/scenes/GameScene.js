@@ -1,7 +1,7 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM, CORES, ELITE, BOSS } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM, CORES, ELITE, BOSS, CRATES } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
@@ -400,6 +400,8 @@ export class GameScene extends Phaser.Scene {
     else if (e.type === 'artilleryCalled') r.say('artillery');
     else if (e.type === 'reinforce') r.say('reinforce');
     else if (e.type === 'soldierDown') r.say('soldier_down');
+    else if (e.type === 'crateDrop') r.say('crate_drop');
+    else if (e.type === 'crate') r.say('crate_taken');
     else if (e.type === 'coreDrop') r.say('core_drop');
     else if (e.type === 'core') r.say('core_taken');
   }
@@ -414,6 +416,10 @@ export class GameScene extends Phaser.Scene {
       else if (e.type === 'spawn') this.parts.portal(this.map.gate.x, this.map.gate.y, this.map.gate.r);
       else if (e.type === 'levelUp') this.parts.levelUp(this.world.heli.x, this.world.heli.y);
       else if (e.type === 'core') this.parts.core(e.x, e.y);
+      else if (e.type === 'crate') {
+        this.notice(T.crates.notice(T.crates[e.item]));
+        this.parts.sparks(e.x, e.y - 10, CRATES.glow, 10);
+      }
       else if (e.type === 'questDone') {
         const q = this.world.quests.find((x) => x.id === e.id);
         this.notice(T.quests.done(T.quests.name(q), T.quests.reward(q.reward)));
@@ -535,6 +541,18 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(1.5, 0x8a8a80);
       for (const dx of [-0.5, 0, 0.5]) g.lineBetween(m.x + dx * mr, m.y - mr * 0.4, m.x + dx * mr * 1.3, m.y - mr * 1.2);
       if (Math.sin(w.t * 6) > 0) g.fillStyle(COLORS.mineLight).fillCircle(m.x, m.y - mr * 0.5, mr * 0.3);
+    }
+
+    // Ящики снабжения: ящик с жёлтыми ремнями, под ним пульсирует жёлтое кольцо; перед концом мигает
+    for (const c of w.crates) {
+      if (c.life < CRATES.blinkAt && Math.sin(w.t * 14) < 0) continue;
+      const s = CRATES.size;
+      g.lineStyle(2, CRATES.glow, 0.5 + 0.3 * Math.sin(w.t * 5 + c.id)).strokeEllipse(c.x, c.y + 2, s * 4, s * 2);
+      g.fillStyle(0x000000, 0.3).fillEllipse(c.x + 2, c.y + 3, s * 2.4, s);
+      g.fillStyle(CRATES.color).fillRect(c.x - s, c.y - s * 1.6, s * 2, s * 1.6);
+      g.fillStyle(0x5a4228).fillRect(c.x - s, c.y - s * 1.6, s * 2, s * 0.35);
+      g.fillStyle(CRATES.strap).fillRect(c.x - s * 0.2, c.y - s * 1.6, s * 0.4, s * 1.6).fillRect(c.x - s, c.y - s * 0.95, s * 2, s * 0.3);
+      g.lineStyle(1.5, 0x2a1e10).strokeRect(c.x - s, c.y - s * 1.6, s * 2, s * 1.6);
     }
 
     // Ядра: фиолетовый кристалл качается над землёй, под ним тень и свечение; перед тем как погаснуть — мигает

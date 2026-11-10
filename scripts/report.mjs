@@ -29,6 +29,13 @@ const rows = runs.map((r, i) => ({
   'пушек сломано (кем)': `${r.towersBroken} (${by(r.brokenBy)})`,
   'проволок порвано (кем)': `${r.wiresBroken} (${by(r.wiresBrokenBy)})`,
   'мины: под кем': by(r.minesTriggeredBy),
+  звёзды: r.stars ?? '—',
+  'ур./ядра/ящики': r.heroLevel ? [r.heroLevel, `${r.coresTaken || 0}из${r.coresDropped || 0}`, r.cratesTaken || 0].join('/') : '—',
+  'усиления': r.perks ? Object.entries(r.perks).map(([k, v]) => v > 1 ? k + '×' + v : k).join(' ') || '—' : '—',
+  'элит/босс': `${r.elitesKilled ?? '—'}/${r.bossKilled ? 'свален' : r.bossLeaked ? 'прорвался' : '—'}`,
+  задания: r.quests ? r.quests.map((q) => (q.state === 'done' ? '✓' : '✗') + q.id).join(' ') : '—',
+  'волну раньше': r.calledEarly || 0,
+  умения: r.abilityUsed ? Object.values(r.abilityUsed).reduce((a, b) => a + b, 0) : 0,
   время: fmt(r.duration),
   план: r.plan,
 }));
@@ -53,6 +60,7 @@ for (const lvl of [...new Set(rows.map((r) => r['уровень']))].sort()) {
   console.log(
     `Уровень ${lvl}: ${wins.length}/${rs.length} побед` +
       (first >= 0 ? `, первая — с ${first + 1}-й попытки` : '') +
-      `, людей не потрачено в среднем ${(rs.reduce((a, r) => a + r.peopleLeft, 0) / rs.length).toFixed(1)}`,
+      `, людей не потрачено в среднем ${(rs.reduce((a, r) => a + r.peopleLeft, 0) / rs.length).toFixed(1)}` +
+      (rs.some((r) => r.quests) ? `, заданий выполнено ${rs.reduce((a, r) => a + (r.quests || []).filter((q) => q.state === 'done').length, 0)} из ${rs.reduce((a, r) => a + (r.quests || []).length, 0)}` : ''),
   );
 }

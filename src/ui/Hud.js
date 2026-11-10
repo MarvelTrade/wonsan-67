@@ -80,7 +80,7 @@ export class Hud {
     qs.forEach((q, i) => {
       const t = this.tQuests[i];
       const v = world.questValue(q);
-      const name = q.hidden && q.state !== 'done' ? `??? ${T.quests.hidden}` : T.quests.name(q);
+      const name = q.hidden && q.state === 'open' ? `??? ${T.quests.hidden}` : T.quests.name(q);
       const mark = q.state === 'done' ? '✓' : q.state === 'failed' ? '✗' : '□';
       const count = q.state === 'open' && v !== null ? `  ${Math.min(v, q.n)}/${q.n}` : '';
       t.setText(`${mark} ${name}${count}`).setColor(q.state === 'done' ? H.questDone : q.state === 'failed' ? H.questFailed : H.questOpen);

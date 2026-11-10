@@ -203,7 +203,8 @@ export const T = {
     reward: (r) => (r?.people ? `+${r.people} чел.` : r?.xp ? `+${r.xp} опыта` : ''),
     done: (name, reward) => `СИСТЕМА · Задание выполнено: ${name}${reward ? ` · ${reward}` : ''}`,
     map: (k, n) => `задания ${k}/${n}`,
-    report: (qs, name) => `Задания: ${qs.map((q) => `${q.state === 'done' ? '✓' : '✗'} ${q.hidden && q.state !== 'done' ? '???' : name(q)}`).join(' · ')}`,
+    // в отчёте скрытое раскрывается — игрок узнаёт, что это было (жанр: «скрытое задание выполнено/провалено»)
+    report: (qs, name) => `Задания: ${qs.map((q) => `${q.state === 'done' ? '✓' : '✗'} ${name(q)}${q.hidden ? ' (скрытое)' : ''}`).join(' · ')}`,
   },
   callEarly: (n, bonus) => `▶ Волна ${n}${bonus ? ` · +${bonus} чел.` : ''}`,
   summary: (r) => {

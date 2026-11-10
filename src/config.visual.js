@@ -1,0 +1,402 @@
+// Числа графики «Вонсан-67»: цвета, экраны (обложка, оглавление, HUD, радио, досье), спрайты, эффекты.
+// Только картинка — симуляция (src/sim) отсюда ничего не берёт. Баланс — в src/config.js.
+// Новые визуальные числа — сюда (правило 3 плана разработки).
+
+// Цвета примитивов
+export const COLORS = {
+  gate: 0x8a3fd1,
+  gateCore: 0xd9b3ff,
+  ground: 0x26302a,
+  rock: 0x3a3f3b,
+  sea: 0x3a7aa0,
+  shelter: 0x7d8288,
+  road: 0xb09670,
+  roadEdge: 0x7a6448,
+  truck: 0x3fae4a,
+  heli: 0x6f7d4a,
+  heliRotor: 0xcfe9f5,
+  bullet: 0xfff0a0,
+  towerBullet: 0xffc66b,
+  goblin: 0x58d64a,
+  spearman: 0x2f9e3a,
+  berserker: 0xc4432c,
+  axe: 0x9aa0a6,
+  trench: 0x3b2f22,
+  trenchEdge: 0x6b5638,
+  mine: 0x2a2a24,
+  mineLight: 0xe0452c,
+  blast: 0xffa13a,
+  spear: 0xd8c08a,
+  enemyHurt: 0xffffff,
+  survivor: 0xffffff,
+  survivorRing: 0xffffff,
+  slot: 0xffffff,
+  slotAffordable: 0xffe066,
+  tower: 0xc9a227,
+  towerBroken: 0x5a4a2a,
+  wire: 0xb8b8b8,
+  hpBar: 0x6fdc5a,
+  hpBarBack: 0x000000,
+  text: '#f4f0e4',
+  textDim: '#a8a89a',
+  panel: 0x101410,
+  star: 0xffd447,
+  soldier: 0x8fa6b8,
+  shell: 0xff7a2e,
+  abilityReady: 0xd9b3ff,
+  abilityCd: 0x4a4a52,
+  starEmpty: 0x3a3f36,
+  starEdge: 0xc8c0a0,   // контур пустой звезды
+  paper: 0xe9dfc4,      // досье
+  paperEdge: 0x9c8c66,
+  stamp: 0xd0262a,      // штамп «провалено» — ярко-красный
+  stampOk: 0x1f9a3a,    // штамп «выполнено» — ярко-зелёный
+  ink: '#1e1c16',
+  inkRed: '#9a2a22',
+};
+
+// Окно «СИСТЕМА» (src/ui/SystemWindow.js): телетайпная лента. Только картинка.
+export const SYS_UI = {
+  width: 980, height: 470, cardW: 290, cardH: 270, portrait: 64,
+  title: 38, body: 23, small: 20, // на телефоне лёжа всё ужимается вдвое
+  paper: 0xdde8ee, edge: 0x7a94a8, card: 0xeef4f6, cardHot: 0xffffff,
+  ink: '#16202a', inkSoft: '#3a4a58', inkBlue: '#1e5a8a', inkBlueHex: 0x1e5a8a,
+};
+
+// Радио: плашка сверху с портретом говорящего. Реплики встают в очередь.
+export const RADIO = {
+  show: 3.8,            // с на экране одна реплика
+  gap: 0.35,            // с паузы между репликами
+  maxQueue: 3,          // больше в очереди не копим — старые события уже не к месту
+  // Титры внизу (план фазы 0): полоса ~17% экрана, выезжает снизу, только пока говорят. Сверху плашка закрывала
+  // людей на крышах. По бокам — место под кнопки умений (abilityCorner), поэтому не во всю ширину.
+  width: 880,
+  height: 124,
+  left: 200,            // (1280 − 880) / 2
+  portrait: 104,        // сторона квадрата с портретом
+  pad: 8,
+  noiseSpace: 40,       // px справа под «помехи», текст туда не заходит
+  alpha: 0.86,          // подложка полупрозрачная
+  slide: 0.2,
+  cps: 42,              // букв в секунду — текст печатается
+  hold: 2.2,            // с после того, как допечатал
+  caseColor: 0x4a5530,  // корпус полевой рации
+  caseLight: 0x6e7a4a,
+  face: 0x1a2014,
+  screw: 0x9a9a88,
+  ledOn: 0x9bd36e,
+  ledOff: 0x2c3a26,
+  wave: 0xc8d48a,           // с — выезд и уезд
+  nameSize: 20,
+  textSize: 26,         // 20 → 26, см. DRAW.fontSize
+};
+
+// Говорящие. art — портрет из public/ (вырезан из обложки 1967 года); нет арта или не загрузился —
+// заглушка из примитивов по цветам ниже
+export const SPEAKERS = {
+  sergeant: { art: 'portraits/sergeant.png', bg: 0x3c4a2c, skin: 0xd9b48f, hair: 0x231c16, name: '#c8d48a', headset: true },
+  medic: { art: 'portraits/medic.png', bg: 0x4a3434, skin: 0xe2bf9c, hair: 0x2a1d17, name: '#f0a8a0', headset: true, cross: true, longHair: true },
+  institute: { bg: 0x2c3a4a, skin: 0xcfae8c, hair: 0x6b6a66, name: '#9ec3e6', glasses: true },
+  // «СИСТЕМА»: задания и ящики идут теми же титрами, вместо портрета — телетайп
+  system: { bg: 0x1e5a8a, name: '#9ad8ff', teletype: true },
+};
+
+// Досье «Новый враг» / «Новое укрепление» (только картинка)
+export const DOSSIER = {
+  width: 900,
+  height: 430,
+  headerH: 84,
+  pad: 30,
+  picture: 230,
+  pictureScale: 2.6,
+  title: 38,
+  body: 22,
+  small: 18,
+  button: 28,
+};
+
+// Экран карты: серии вдоль побережья слева направо (только картинка)
+export const WORLD_MAP = {
+  art: 'art/coast.jpg', // фон — верхняя панель первой страницы манхвы, обрезана ниже нарисованного названия
+  titleTop: 40,         // название игры: крупно по-корейски, под ним RU · EN
+  titleKoSize: 104,
+  titleSubSize: 30,
+  artNodeY: [575, 535, 590], // с фоном серии стоят внизу, вдоль береговой дороги
+  artSubtitleY: 345,
+  artShade: 0.65,       // затемнение нижней полосы под подписями
+  artShadeTop: 470,
+  coastY: 470,          // линия берега; ниже — море
+  marginX: 220,         // отступ первой и последней серии от краёв
+  nodeY: [360, 300, 380], // высота кружка каждой серии над берегом (по порядку)
+  nodeRadius: 46,
+  roadDash: 14,
+  titleSize: 64,
+  nodeFont: 40,
+  labelFont: 26,
+  // ранг врат (жанр: шкала опасности, которую ставит институт) — значок-ромб у кружка серии
+  rankSize: 24,
+  rankFont: 26,
+};
+
+// Ранги врат: только подпись и цвет, на правила не влияют (LEVELS[].rank).
+export const GATE_RANKS = {
+  E: { color: 0x3a9a5a },
+  D: { color: 0x3a7ac8 },
+  C: { color: 0x8a4ad8 },
+  B: { color: 0xc8892a },
+  A: { color: 0xc83a3a },
+  S: { color: 0x1a1a1a },
+};
+
+// Обложка тома (src/scenes/CoverScene.js): раскладка панелей манхвы и живых врат. Только картинка.
+export const COVER = {
+  gutter: 14, border: 4, paper: '#f2ede2', ink: '#0e0b18',
+  slantTop: 478, slantDrop: 68,       // нижний край верхней панели: y = slantTop − slantDrop·x/1280
+  splitTop: 700, splitBottom: 600,    // косой разрез нижних панелей: x вверху и внизу
+  portrait: 232,
+  heroB: { portraitX: 340, captionX: 44, captionY: 528 },
+  heroC: { portraitX: 712, captionX: 1236, captionY: 528 },
+  gate: { x: 760, y: 150, r: 100 },   // врата над станцией
+  sfx: { x: 960, y: 70, size: 64, angle: -10 },
+  titleX: 50, titleY: 26, titleKoSize: 112, titleSubSize: 30,
+  narration: { x: 50, y: 206, size: 22 },
+  bubble: { x: 64, y: 300, w: 450, h: 104 }, bubbleSize: 22,
+  volumeSize: 24, heroName: 34, heroPower: 20,
+  tapY: 36, tapSize: 26,
+  turn: 0.9,                           // с — переворот страницы
+};
+
+// Оглавление тома (src/scenes/MapScene.js): главы — косые панели манхвы. Только картинка.
+export const CHAPTERS = {
+  gutter: 14, top: 92, headerH: 78, headerSize: 26, slant: 46, pad: 22,
+  portalY: 214, portalR: 54,
+  enemyY: 540, enemyScale: 1.7,
+  tagSize: 20, titleY: 596, titleSize: 44, teaserSize: 18, starsY: 680, metaSize: 18, stateSize: 20,
+  // srcX — откуда в арте побережья берётся полоса панели; enemy — новый враг главы (pack — сколько в пачке)
+  list: [
+    { srcX: 0, portalDx: 50, enemy: 'spearman', enemyDx: -40, pack: 1 },
+    { srcX: 420, portalDx: 40, enemy: 'berserker', enemyDx: -40, pack: 1 },
+    { srcX: 780, portalDx: 20, enemy: 'goblin', enemyDx: -50, pack: 3 },
+  ],
+};
+
+// Фон уровня (src/art/terrain.js): палитра и плотность. Только картинка.
+export const TERRAIN = {
+  // свет сцены одним градиентом (docs/art-style.md): тёплый закат сверху слева, фиолетовая тень снизу справа
+  lightWarm: 0xffa860,
+  lightCool: 0x4a3a8a,
+  lightAlpha: 0.16,
+  gateGlow: 0x9a5ad8,
+  seed: 67,
+  seaH: 46,
+  patches: 70,
+  tufts: 900,
+  stones: 120,
+  trees: 34,
+  grass: 0x5d7a4a,
+  grassDark: 0x4a6340,
+  grassDry: 0x8a8a58,
+  grassLight: 0x9ab070,
+  sand: 0xe0cfa0,
+  sea: 0x22405a,
+  seaLight: 0x7ab8d8,
+  foam: 0xf4fbff,
+  road: 0x6e5c44,
+  roadEdge: 0x4e4130,
+  roadShoulder: 0x6e7a4a,
+  rut: 0x957c5a,
+  roadRise: 6,          // px — высота насыпи дороги (передний откос виден в 3/4)
+  roadSide: 0x6e5838,   // откос насыпи
+  roadLight: 0xd8c4a0,  // светлый верх полотна
+  stoneDark: 0x8a8070,
+  puddles: 7,
+  puddle: 0x6aa0c8,
+  stone: 0xc8bca8,
+  wall: 0x9a9284,
+  roofTile: 0x8a4a38,
+  roofTileDark: 0x6a3a2c,
+  roofSlate: 0x6c6e70,
+  roofSlateDark: 0x515356,
+  tree: 0x34502c,
+  treeDark: 0x22341e,
+  treeLight: 0x5a7a44,
+};
+
+// Постройки и техника (src/art/props.js). Только картинка.
+export const PROPS = {
+  sandbag: 0xa8946a,
+  sandbagDark: 0x8c7a56,
+  concrete: 0x8a8a84,
+  concreteLight: 0xa4a49c,
+  concreteDark: 0x6a6a66,
+  truckCab: 0x3f5232,
+  truckTent: 0x5f6b3e,
+  glass: 0x9fc4d4,
+  gunBase: 0x4a4636,
+  gunMetal: 0x23231f,
+  gateDeep: 0x1c0f2c,
+};
+
+// Спрайты из Blender (tools/blender/make_sprites.py → public/sprites, тун-шейдинг, ракурс 3/4).
+// Отрисованы в двойном разрешении: scale — во сколько раз показать относительно файла.
+export const SPRITES = {
+  keys: ['goblin', 'spearman', 'berserker', 'civ0', 'civ1', 'civ2', 'soldier', 'heli',
+    'houseA', 'houseB', 'treeA', 'treeB', 'bunker', 'truck', 'nest', 'watchtower'],
+  scale: 0.5,           // файл в 2×: 0.5 — «логический» размер
+  // Масштаб от файла (2×). Пропорции: человек ≈ треть высоты дома, вертолёт ≈ полтора дома, бункер — по убежищу.
+  // Было unitScale 0.8 и heli 0.62 — фигуры и вертолёт выходили в 2–3 раза крупнее домов.
+  keyScale: {
+    goblin: 0.3, spearman: 0.3, berserker: 0.34, soldier: 0.3, civ0: 0.28, civ1: 0.28, civ2: 0.28,
+    heli: 0.32, houseA: 0.6, houseB: 0.6, treeA: 0.6, treeB: 0.6, bunker: 0.5, truck: 0.42, nest: 0.42,
+    watchtower: 0.42,
+  },
+  bob: 1.6,             // px — подпрыгивание при ходьбе
+  bobSpeed: 11,
+  heliShadow: 0.3,
+};
+
+// Юниты (src/art/units.js). Только картинка.
+export const UNITS = {
+  outline: 0x141810,
+  eye: 0x101008,
+  eyeRed: 0xffd23a,
+  goblin: 0x6cc44a,
+  goblinEar: 0x4f9a36,
+  goblinRag: 0x6b5236,
+  spearman: 0x3f8a3a,
+  spearHelm: 0x5a5e62,
+  spearShaft: 0x9c7a4c,
+  spearHead: 0xc8ccd0,
+  shield: 0x7a5232,
+  shieldBoss: 0xb8b0a0,
+  berserker: 0xc4432c,
+  berserkerDark: 0x5a2418,
+  horn: 0xe8dcc0,
+  axeShaft: 0x6a4a2c,
+  axeHead: 0x9aa0a6,
+  skin: 0xe2bf9c,
+  hair: 0x2a1d17,
+  cloth: [0x4a6a8a, 0x8a5a3a, 0x6a6a5a, 0x7a3a3a, 0x3a5a4a],
+  soldierBody: 0x5a6a3c,
+  helmet: 0x4a5a30,
+  rifle: 0x23231f,
+  heli: 0x5f6b3e,
+  heliDark: 0x434d2c,
+  heliMark: 0xc23a26,
+  glass: 0x9fc4d4,
+  rotor: 0xd8e0d0,
+};
+
+// HUD (src/ui/Hud.js): плашки со значками. Только картинка.
+export const HUD = {
+  margin: 10,
+  gap: 8,
+  chipH: 48,
+  pad: 10,
+  icon: 26,
+  radius: 9,
+  font: 26,
+  text: '#f4f0e4',
+  fill: 0x1c2216,
+  alpha: 0.82,
+  edge: 0x6b7a5a,
+  ok: 0x9bd36e,
+  empty: 0x3a3f36,
+  alert: 0xc4432c,
+  waveOn: 0x6a3a8a,
+  xp: 0x9ad8ff,
+  levelUp: 0x1e5a8a,
+  questFont: 19,        // список заданий под «Ур.»: на телефоне ≈ 10 px
+  questDone: '#9bd36e',
+  questFailed: '#d08a7a',
+  questOpen: '#e8e2d0',
+  lowHp: 3,             // убежище ≤ этого — значок и полоска красные
+  flashTime: 0.45,      // с — плашка убежища краснеет, когда его бьют
+};
+
+// Кнопки интерфейса (src/ui/button.js)
+export const BUTTON = {
+  font: 28,
+  padX: 26,
+  padY: 10,
+  minW: 150,
+  radius: 10,
+  kinds: {
+    primary: { fill: 0xffd85a, edge: 0xa88a2a, text: '#1e1c16' },
+    ok: { fill: 0x9bd36e, edge: 0x5a8a3a, text: '#1e1c16' },
+    plain: { fill: 0xd8d4c4, edge: 0x8a8676, text: '#1e1c16' },
+    dark: { fill: 0x5a6a3c, edge: 0x34401f, text: '#f4f0e4' },
+    gate: { fill: 0xd9b3ff, edge: 0x7a4ab0, text: '#1e1c16' },
+  },
+};
+
+// Частицы (src/art/particles.js). Только картинка.
+export const FX = {
+  max: 700,             // больше не держим — старые уходят первыми
+  flash: 0xfff2a0,
+  spark: 0xffd23a,
+  fire: 0xff8a2e,
+  fireHot: 0xffd85a,
+  smoke: 0x4a4a52,
+  smokeLight: 0x9a98a8,
+  debris: 0x3a3226,
+  shock: 0xfff4e0,
+  portal: 0xd9b3ff,
+  level: 0x9ad8ff,
+  core: 0xd6a8ff,
+};
+
+// Размеры отрисовки (только картинка, на правила не влияют)
+export const DRAW = {
+  slotRadius: 22,
+  towerSize: 26,
+  barrel: 22,
+  trenchRadius: 24,
+  trenchWidth: 8,
+  mineRadius: 7,
+  padSquash: 0.62,      // площадки под постройки в 3/4 — эллипс
+  padH: 5,              // толщина плиты
+  wireLift: 6,          // px — спираль проволоки приподнята над дорогой
+  soldierRadius: 8,
+  nestGunH: 8,         // px — высота станка пулемёта над землёй (ствол рисуется оттуда)
+  hpOffset: { goblin: 30, spearman: 34, berserker: 44, soldier: 28, nest: 26 },
+  roofH: 34,            // px — на столько выше точки появления стоит крыша дома: люди ждут на крышах
+  base: { w: 136, h: 96, post: 14, fenceH: 10 }, // огороженная база грузовика (вышки — по углам) // полоска HP над спрайтом
+  abilityR: 40,         // кнопки умений
+  abilityGap: 16,
+  abilityBottom: 76,    // от нижнего края до низа кнопок умений (над морем и подсказкой)
+  heliLength: 78,       // транспортный вертолёт: длиннее и шире прежнего силуэта
+  heliWidth: 24,
+  rotorRadius: 40,
+  shadowOffset: 14,
+  survivorRadius: 6,
+  survivorRing: 16,
+  bulletRadius: 2.5,
+  tracer: 12,           // px — длина трассера
+  ambient: { clouds: 4, cloudSpeed: 9, cloudAlpha: 0.05, waves: 18, waveSpeed: 22 }, // тени облаков, волны
+  wireWidth: 34,
+  hpBarW: 28,
+  hpBarH: 4,
+  menuW: 230,           // 170×40 → 230×52: на телефоне лёжа (812×375) игра ужимается вдвое
+  menuH: 52,
+  menuGap: 8,
+  fontSize: 26,         // 20 → 26: на телефоне лёжа выходило ~10 px
+  resultTitle: 44,
+  resultW: 1060,
+  resultH: 624,         // 540 → 624: со строкой заданий текст отчёта уровня 3 налезал на кнопки
+  resultStar: 26,
+  resultSmall: 20,
+  // штамп отчёта: корейская надпись (шрифт с хангылем есть на Windows, Android, iOS), снизу RU · EN
+  stamp: { w: 250, h: 96, koSize: 40, subSize: 13, koFont: '"Malgun Gothic", "Noto Sans KR", "Apple SD Gothic Neo", "Nanum Gothic", sans-serif' },
+  mapStar: 18,
+  resultBody: 24,       // машинопись в отчёте: на телефоне лёжа ~12 px, поэтому жирная
+  resultButton: 30,
+  hudPad: 14,
+  hudAlpha: 0.55,       // подложка HUD
+  hudLeftW: 400,
+  hudRightW: 240,
+  callEarlyGap: 14,     // кнопка «волна раньше» — под вратами
+  fxTime: 0.35,         // с — вспышки попаданий и смертей
+  gatePulse: 2.5,       // рад/с
+  resultRestartDelay: 2.5, // с — бот с ?runs=N перезапускает забег сам
+};

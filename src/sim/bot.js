@@ -106,6 +106,8 @@ export class Bot {
       }
     }
     if (this.useAbilities) this.castAbilities();
+    // «Система»: из предложенного берёт первое по BOT.perkPriority
+    if (w.offer) w.choosePerk(BOT.perkPriority.find((id) => w.offer.includes(id)) ?? w.offer[0]);
     w.heli.target = this.heliTarget();
   }
 
@@ -113,7 +115,7 @@ export class Bot {
     const w = this.world;
     const h = w.heli;
     const truck = { x: w.map.truck.x, y: w.map.truck.y };
-    if (h.carrying >= HELI.capacity) return truck;
+    if (h.carrying >= w.heliCapacity) return truck;
     // Ближайший человек, до которого успеваем долететь
     let best = null;
     let bestD = Infinity;

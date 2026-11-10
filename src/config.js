@@ -228,6 +228,33 @@ export const ABILITIES = {
   },
 };
 
+// «Система» (жанр манхвы, docs/genre-manhwa.md): опыт за убитых и спасённых, уровень — выбор 1 из 3 усилений.
+// who — чей это навык (sergeant — Хан, «проявление оружия»; medic — Юн, «свет лечения»), max — сколько раз можно взять.
+export const SYSTEM = {
+  xp: { goblin: 1, spearman: 3, berserker: 6, saved: 4 },
+  // опыт, с которого начинается уровень 1, 2, … (первая версия 0/18/45/… давала 5–6 уровней за забег: 1t1w 24/30, trap 28/30)
+  levels: [0, 40, 100, 190, 310, 460],
+  choices: 3,
+  perks: {
+    caliber: { who: 'sergeant', max: 3, gunDmg: 0.12 },       // урон пушек +12%
+    tempo: { who: 'sergeant', max: 3, gunRate: 0.1 },         // скорострельность +10%
+    barbs: { who: 'sergeant', max: 2, wireHp: 0.4 },          // прочность проволоки +40%
+    sapper: { who: 'sergeant', max: 2, mineDmg: 0.25, needsBuild: 'mine' }, // урон мин +25%
+    heal: { who: 'medic', max: 3, shelterHeal: 1 },           // убежище +1 (не выше максимума)
+    stretcher: { who: 'medic', max: 2, heliCap: 1 },          // вертолёт берёт на борт +1
+    mobilize: { who: 'medic', max: 3, people: 2 },            // сразу +2 человека
+    focus: { who: 'medic', max: 2, abilityCd: 0.2, needsAbility: true }, // перезарядка умений −20%
+  },
+};
+
+// Окно «СИСТЕМА» (src/ui/SystemWindow.js): телетайпная лента. Только картинка.
+export const SYS_UI = {
+  width: 980, height: 470, cardW: 290, cardH: 270, portrait: 64,
+  title: 38, body: 23, small: 20, // на телефоне лёжа всё ужимается вдвое
+  paper: 0xdde8ee, edge: 0x7a94a8, card: 0xeef4f6, cardHot: 0xffffff,
+  ink: '#16202a', inkSoft: '#3a4a58', inkBlue: '#1e5a8a', inkBlueHex: 0x1e5a8a,
+};
+
 // «Вызвать волну раньше»: за каждые perSeconds, оставшиеся до волны, — один человек, не больше maxBonus.
 // Бот волны раньше не вызывает — замеры баланса без этого бонуса.
 export const CALL_EARLY = {
@@ -241,18 +268,21 @@ export const CALL_EARLY = {
 const WAVES_1 = {
   firstAt: 30,          // с на постройку до первой волны
   breakTime: 25,        // с между волнами
+  // Замер 2026-11-10 с «системой» (бот берёт усиления по BOT.perkPriority, 40 забегов): 0t0w — поражение на волне 2;
+  // 1t1w — 0/40; 2t0w — 34/40; 2t1w — 37/40; trap — 13/40, пушка под проволокой сломана в 40/40.
+  // Волны 2–3 тяжелее прежних (26/9 и 36/15): усиления иначе делали проходимым всё, включая trap (28/30).
   list: [
     { groups: [
       { type: 'goblin', count: 16, every: 1.2, at: 0 },
       { type: 'spearman', count: 3, every: 4, at: 8 },
     ] },
     { groups: [
-      { type: 'goblin', count: 26, every: 0.85, at: 0 },
-      { type: 'spearman', count: 9, every: 2.3, at: 5 },
+      { type: 'goblin', count: 28, every: 0.82, at: 0 },
+      { type: 'spearman', count: 10, every: 2.2, at: 5 },
     ] },
     { groups: [
-      { type: 'goblin', count: 36, every: 0.66, at: 0 },
-      { type: 'spearman', count: 15, every: 1.7, at: 3 },
+      { type: 'goblin', count: 38, every: 0.64, at: 0 },
+      { type: 'spearman', count: 17, every: 1.6, at: 3 },
     ] },
   ],
 };
@@ -427,6 +457,7 @@ export const LEVELS = [
 
 // Общее для бота на всех уровнях
 export const BOT = {
+  perkPriority: ['caliber', 'tempo', 'mobilize', 'heal', 'stretcher', 'barbs', 'sapper', 'focus'],
   artilleryMin: 4,      // бот с +a: залп, только если под ним будет столько врагов
   reinforceFrom: 0.5,   // подкрепление — когда головной враг прошёл эту долю дороги
   reinforceAhead: 60,   // …и на столько впереди него
@@ -629,6 +660,8 @@ export const HUD = {
   empty: 0x3a3f36,
   alert: 0xc4432c,
   waveOn: 0x6a3a8a,
+  xp: 0x9ad8ff,
+  levelUp: 0x1e5a8a,
   lowHp: 3,             // убежище ≤ этого — значок и полоска красные
   flashTime: 0.45,      // с — плашка убежища краснеет, когда его бьют
 };
@@ -661,6 +694,7 @@ export const FX = {
   debris: 0x3a3226,
   shock: 0xfff4e0,
   portal: 0xd9b3ff,
+  level: 0x9ad8ff,
 };
 
 // Размеры отрисовки (только картинка, на правила не влияют)

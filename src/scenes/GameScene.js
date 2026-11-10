@@ -1,13 +1,14 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
 import { saveRun } from '../telemetry.js';
 import { markWin, wasSeen, markSeen } from '../progress.js';
 import { Dossier } from '../ui/Dossier.js';
+import { SystemWindow } from '../ui/SystemWindow.js';
 import { drawTerrain } from '../art/terrain.js';
 import { drawGate, drawSandbags } from '../art/props.js';
 import { Particles } from '../art/particles.js';
@@ -272,6 +273,24 @@ export class GameScene extends Phaser.Scene {
     this.cards.push({ kind, id, key });
   }
 
+  // «Система»: повысился уровень — окно выбора усиления (бот выбирает сам, см. Bot)
+  openSystem() {
+    if (this.card || this.bot || !this.world.offer || this.world.over) return;
+    this.closeMenu();
+    this.world.heli.target = null;
+    this.dragging = false;
+    this.card = {
+      key: 'system',
+      ui: new SystemWindow(this, this.world, (id) => {
+        this.world.choosePerk(id);
+        this.card = null;
+        this.radio.say(`perk_${SYSTEM.perks[id].who}`);
+        this.openNextCard();
+        this.openSystem();
+      }),
+    };
+  }
+
   openNextCard() {
     if (this.card || !this.cards.length || this.world.over) return;
     const entry = this.cards.shift();
@@ -371,6 +390,7 @@ export class GameScene extends Phaser.Scene {
       if (e.type === 'kill') this.parts.death(e.x, e.y, COLORS[e.enemy]);
       else if (e.type === 'hit') this.parts.sparks(e.x, e.y - 8, FX.spark, 3);
       else if (e.type === 'spawn') this.parts.portal(this.map.gate.x, this.map.gate.y, this.map.gate.r);
+      else if (e.type === 'levelUp') this.parts.levelUp(this.world.heli.x, this.world.heli.y);
       else if (e.type === 'stab') {
         this.fx.push({ kind: 'stab', x: e.x, y: e.y, t: DRAW.fxTime });
         this.parts.sparks(e.x, e.y - 6, FX.spark, 4);
@@ -398,6 +418,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.world.events.length = 0;
     this.openNextCard();
+    this.openSystem();
   }
 
   // ---------- Фон ----------

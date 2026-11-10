@@ -1,5 +1,5 @@
 // Вся логика забега без Phaser: её гоняет и сцена в браузере, и бот в Node (scripts/sim.mjs).
-import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW, STARS, CALL_EARLY, ABILITIES } from '../config.js';
+import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW, STARS, CALL_EARLY, ABILITIES, SYSTEM } from '../config.js';
 import { Path, rng } from './path.js';
 
 // Границы мира — по размеру экрана (мир = экран)
@@ -41,6 +41,14 @@ export class World {
     this.abilities = Object.fromEntries((this.level.abilities || []).map((id) => [id, { cd: 0 }]));
     this.strikes = [];
     this.soldiers = [];
+    // «Система»: опыт, уровень, предложенные усиления и множители от взятых (у perkRand свой seed — не сбивает остальное)
+    this.xp = 0;
+    this.heroLevel = 1;
+    this.pendingLevels = 0;
+    this.offer = null;
+    this.perks = {};
+    this.mods = { gunDmg: 1, gunRate: 1, wireHp: 1, mineDmg: 1, abilityCd: 1, heliCap: 0 };
+    this.perkRand = rng((seed ^ 0x5eed67) >>> 0);
     this.enemies = [];
     this.shots = [];
     this.survivors = [];
@@ -98,7 +106,7 @@ export class World {
       const wire = {
         id: this.nextId++, slot: slot.id,
         d0: slot.roadD - cfg.length / 2, d1: slot.roadD + cfg.length / 2,
-        hp: cfg.hp, maxHp: cfg.hp, alive: true,
+        hp: cfg.hp * this.mods.wireHp, maxHp: cfg.hp * this.mods.wireHp, alive: true,
       };
       this.wires.push(wire);
       slot.building = { kind, ref: wire };
@@ -120,6 +128,7 @@ export class World {
     this.updateEnemies(dt);
     this.updateMines();
     this.updateAbilities(dt);
+    if (this.pendingLevels > 0 && !this.offer) this.makeOffer();
     this.updateTowers(dt);
     this.updateShots(dt);
     this.updateHeliGun(dt);
@@ -274,9 +283,9 @@ export class World {
     h.rotor += HELI.rotorSpeed * dt;
 
     // Забрать людей
-    if (h.carrying < HELI.capacity) {
+    if (h.carrying < this.heliCapacity) {
       for (const s of this.survivors) {
-        if (h.carrying >= HELI.capacity) break;
+        if (h.carrying >= this.heliCapacity) break;
         if (Math.hypot(s.x - h.x, s.y - h.y) <= HELI.pickupRadius) {
           s.taken = true;
           h.carrying++;
@@ -289,6 +298,7 @@ export class World {
     if (h.carrying > 0 && Math.hypot(this.map.truck.x - h.x, this.map.truck.y - h.y) <= HELI.dropRadius) {
       this.people += h.carrying;
       this.stats.saved += h.carrying;
+      this.gainXp(h.carrying * SYSTEM.xp.saved);
       this.events.push({ type: 'drop', n: h.carrying });
       h.carrying = 0;
     }
@@ -502,6 +512,76 @@ export class World {
     this.events.push({ type: 'towerBroken', slot: tower.slot, by });
   }
 
+  // ---------- «Система»: опыт, уровни, усиления ----------
+  get heliCapacity() {
+    return HELI.capacity + this.mods.heliCap;
+  }
+
+  gainXp(n) {
+    if (!n || this.over) return;
+    this.xp += n;
+    const L = SYSTEM.levels;
+    while (this.heroLevel < L.length && this.xp >= L[this.heroLevel]) {
+      this.heroLevel++;
+      this.pendingLevels++;
+      this.events.push({ type: 'levelUp', level: this.heroLevel });
+    }
+  }
+
+  // доля пути до следующего уровня (для полоски в HUD)
+  get xpProgress() {
+    const L = SYSTEM.levels;
+    if (this.heroLevel >= L.length) return 1;
+    const a = L[this.heroLevel - 1];
+    const b = L[this.heroLevel];
+    return Math.max(0, Math.min(1, (this.xp - a) / (b - a)));
+  }
+
+  perkAllowed(id) {
+    const p = SYSTEM.perks[id];
+    if ((this.perks[id] || 0) >= p.max) return false;
+    if (p.needsBuild && !this.level.builds.includes(p.needsBuild)) return false;
+    if (p.needsAbility && !Object.keys(this.abilities).length) return false;
+    return true;
+  }
+
+  makeOffer() {
+    const pool = Object.keys(SYSTEM.perks).filter((id) => this.perkAllowed(id));
+    if (!pool.length) {
+      this.pendingLevels = 0;
+      return;
+    }
+    const offer = [];
+    while (offer.length < Math.min(SYSTEM.choices, pool.length)) {
+      const id = pool[Math.floor(this.perkRand() * pool.length)];
+      if (!offer.includes(id)) offer.push(id);
+    }
+    this.offer = offer;
+    this.events.push({ type: 'offer', offer });
+  }
+
+  choosePerk(id) {
+    if (!this.offer || !this.offer.includes(id)) return false;
+    const p = SYSTEM.perks[id];
+    this.perks[id] = (this.perks[id] || 0) + 1;
+    if (p.gunDmg) this.mods.gunDmg += p.gunDmg;
+    if (p.gunRate) this.mods.gunRate += p.gunRate;
+    if (p.mineDmg) this.mods.mineDmg += p.mineDmg;
+    if (p.heliCap) this.mods.heliCap += p.heliCap;
+    if (p.abilityCd) this.mods.abilityCd *= 1 - p.abilityCd;
+    if (p.wireHp) {
+      const k = (this.mods.wireHp + p.wireHp) / this.mods.wireHp;
+      this.mods.wireHp += p.wireHp;
+      for (const w of this.wires) if (w.alive) { w.hp *= k; w.maxHp *= k; }
+    }
+    if (p.shelterHeal) this.shelter.hp = Math.min(this.shelter.maxHp, this.shelter.hp + p.shelterHeal);
+    if (p.people) this.people += p.people;
+    this.pendingLevels--;
+    this.offer = null;
+    this.events.push({ type: 'perk', id });
+    return true;
+  }
+
   // ---------- Умения ----------
   canUse(id) {
     const a = this.abilities[id];
@@ -512,7 +592,7 @@ export class World {
   useArtillery(x, y) {
     if (!this.canUse('artillery')) return false;
     const cfg = ABILITIES.artillery;
-    this.abilities.artillery.cd = cfg.cooldown;
+    this.abilities.artillery.cd = cfg.cooldown * this.mods.abilityCd;
     this.strikes.push({ x, y, t: cfg.delay });
     this.stats.abilityUsed.artillery++;
     this.events.push({ type: 'artilleryCalled', x, y });
@@ -524,7 +604,7 @@ export class World {
     if (!this.canUse('reinforce')) return false;
     const cfg = ABILITIES.reinforce;
     const near = this.path.nearest(x, y);
-    this.abilities.reinforce.cd = cfg.cooldown;
+    this.abilities.reinforce.cd = cfg.cooldown * this.mods.abilityCd;
     for (let i = 0; i < cfg.count; i++) {
       const d = Math.max(0, Math.min(this.path.length, near.d + (i - (cfg.count - 1) / 2) * cfg.spacing));
       const p = this.path.at(d);
@@ -607,7 +687,7 @@ export class World {
     this.stats.minesTriggeredBy[by] = (this.stats.minesTriggeredBy[by] || 0) + 1;
     this.events.push({ type: 'boom', x: m.x, y: m.y, by });
     for (const e of [...this.enemies]) {
-      if (Math.hypot(e.x - m.x, e.y - m.y) <= cfg.radius) this.hit(e, cfg.damage, 'mine');
+      if (Math.hypot(e.x - m.x, e.y - m.y) <= cfg.radius) this.hit(e, cfg.damage * this.mods.mineDmg, 'mine');
     }
     for (const t of this.towers) {
       if (!t.alive || Math.hypot(t.x - m.x, t.y - m.y) > cfg.radius) continue;
@@ -637,9 +717,9 @@ export class World {
         if (!target || e.d > target.d) target = e;
       }
       if (!target) continue;
-      t.cd = 1 / cfg.fireRate;
+      t.cd = 1 / (cfg.fireRate * this.mods.gunRate);
       t.aim = Math.atan2(target.y - t.y, target.x - t.x);
-      this.shots.push({ from: 'tower', x: t.x, y: t.y, target, speed: cfg.bulletSpeed, damage: cfg.damage });
+      this.shots.push({ from: 'tower', x: t.x, y: t.y, target, speed: cfg.bulletSpeed, damage: cfg.damage * this.mods.gunDmg });
     }
   }
 
@@ -673,6 +753,7 @@ export class World {
     }
     this.enemies = this.enemies.filter((x) => x !== e);
     this.stats.kills[e.type]++;
+    this.gainXp(SYSTEM.xp[e.type] || 0);
     this.stats.killsBy[from]++;
     this.events.push({ type: 'kill', x: e.x, y: e.y, enemy: e.type });
   }
@@ -711,6 +792,9 @@ export class World {
       calledEarly: s.calledEarly,
       earlyBonus: s.earlyBonus,
       abilityUsed: s.abilityUsed,
+      heroLevel: this.heroLevel,
+      xp: this.xp,
+      perks: this.perks,
       soldiersLost: s.soldiersLost,
       duration: Math.round(this.t),
     };

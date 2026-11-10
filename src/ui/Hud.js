@@ -12,6 +12,7 @@ export class Hud {
     this.tPeople = scene.add.text(0, 0, '', style).setDepth(15).setOrigin(0, 0.5);
     this.tBoard = scene.add.text(0, 0, '', style).setDepth(15).setOrigin(0, 0.5);
     this.tWave = scene.add.text(0, 0, '', { ...style, fontSize: `${H.font * 0.85}px` }).setDepth(15).setOrigin(0, 0.5);
+    this.tLevel = scene.add.text(0, 0, '', { ...style, fontSize: `${H.font * 0.8}px`, color: '#9ad8ff' }).setDepth(15).setOrigin(0, 0.5);
     this.prevHp = null;
     this.flash = 0;
   }
@@ -36,7 +37,7 @@ export class Hud {
       }
     });
     x = this.chip(x + H.gap, y1, this.tPeople, String(world.people), (cx, cy) => this.iconPerson(cx, cy));
-    this.chip(x + H.gap, y1, this.tBoard, `${world.heli.carrying}/${HELI.capacity}`, (cx, cy) => this.iconHeli(cx, cy));
+    this.chip(x + H.gap, y1, this.tBoard, `${world.heli.carrying}/${world.heliCapacity}`, (cx, cy) => this.iconHeli(cx, cy));
 
     // ряд 2: волна — отметки и таймер
     const y2 = H.margin + H.chipH + H.gap + H.chipH * 0.42;
@@ -55,6 +56,15 @@ export class Hud {
       g.fillStyle(done ? H.ok : cur ? H.waveOn : H.empty).fillCircle(H.margin + H.pad + 6 + i * 16, y2, cur ? 6 : 5);
     }
     this.tWave.setPosition(H.margin + H.pad + pipsW + 8, y2);
+
+    // уровень героя («система») и полоска опыта до следующего
+    const lx = H.margin + w2 + H.gap;
+    this.tLevel.setText(T.level(world.heroLevel));
+    const lw = H.pad * 2 + Math.max(this.tLevel.width, 56);
+    this.box(lx, y2 - h2 / 2, lw, h2, world.pendingLevels > 0 ? H.levelUp : null);
+    this.tLevel.setPosition(lx + H.pad, y2 - 4);
+    g.fillStyle(H.empty).fillRect(lx + H.pad, y2 + h2 / 2 - 9, lw - H.pad * 2, 4);
+    g.fillStyle(H.xp).fillRect(lx + H.pad, y2 + h2 / 2 - 9, (lw - H.pad * 2) * world.xpProgress, 4);
   }
 
   // плашка: фон, значок, текст; extra — дорисовать поверх (полоска убежища)

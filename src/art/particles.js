@@ -69,6 +69,16 @@ export class Particles {
     }
   }
 
+  // уровень повышен: голубое кольцо и искры вверх
+  levelUp(x, y) {
+    this.add({ kind: 'ring', x, y, life: 0.6, size: 10, grow: 90, color: F.level, alpha: 0.9 });
+    for (let i = 0; i < 14; i++) {
+      const s = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
+      const v = 80 + Math.random() * 120;
+      this.add({ x, y, vx: Math.cos(s) * v, vy: Math.sin(s) * v, life: 0.7, size: 2.4, color: F.level, drag: 2 });
+    }
+  }
+
   // враг вышел из врат: фиолетовые искры закручиваются
   portal(x, y, r) {
     for (let i = 0; i < 6; i++) {

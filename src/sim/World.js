@@ -667,7 +667,10 @@ export class World {
   hit(e, damage, from) {
     e.hp -= damage;
     e.hurtT = 0.08;
-    if (e.hp > 0) return;
+    if (e.hp > 0) {
+      if (from === 'heli' || from === 'tower') this.events.push({ type: 'hit', x: e.x, y: e.y }); // искры — только картинка
+      return;
+    }
     this.enemies = this.enemies.filter((x) => x !== e);
     this.stats.kills[e.type]++;
     this.stats.killsBy[from]++;

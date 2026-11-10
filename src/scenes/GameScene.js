@@ -1,7 +1,7 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
@@ -10,6 +10,7 @@ import { markWin, wasSeen, markSeen } from '../progress.js';
 import { Dossier } from '../ui/Dossier.js';
 import { drawTerrain } from '../art/terrain.js';
 import { drawGate, drawSandbags } from '../art/props.js';
+import { Particles } from '../art/particles.js';
 import { Radio } from '../ui/Radio.js';
 import { copyStats, statsText } from '../ui/copyStats.js';
 import { drawStars } from '../ui/stars.js';
@@ -47,6 +48,8 @@ export class GameScene extends Phaser.Scene {
     this.topG = this.add.graphics().setDepth(3);       // над фигурами: стволы, полоски HP, пули
     this.fxG = this.add.graphics().setDepth(5);
     this.menuG = this.add.graphics().setDepth(10);
+    this.parts = new Particles(this.add.graphics().setDepth(5.5)); // искры, взрывы, дым — над фигурами
+    this.ambG = this.add.graphics().setDepth(1.95); // тени облаков и волны — над землёй, под фигурами
     // вертолёт летит над всем: тень — на земле, корпус и винт — выше фигур
     this.heliShadow = this.add.image(0, 0, 'spr_heli').setOrigin(this.spriteMeta.heli?.ox ?? 0.6, 0.5)
       .setScale(SPRITES.keyScale.heli).setTint(0x000000).setTintMode(Phaser.TintModes.FILL).setAlpha(SPRITES.heliShadow).setDepth(1.5);
@@ -356,20 +359,32 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.world.events) {
       this.radioFor(e);
       if (e.type === 'spawn' && !this.bot) this.queueCard('enemy', e.enemy);
-      if (e.type === 'kill') this.fx.push({ kind: 'kill', x: e.x, y: e.y, t: DRAW.fxTime, color: COLORS[e.enemy] });
-      else if (e.type === 'stab') this.fx.push({ kind: 'stab', x: e.x, y: e.y, t: DRAW.fxTime });
+      if (e.type === 'kill') this.parts.death(e.x, e.y, COLORS[e.enemy]);
+      else if (e.type === 'hit') this.parts.sparks(e.x, e.y - 8, FX.spark, 3);
+      else if (e.type === 'spawn') this.parts.portal(this.map.gate.x, this.map.gate.y, this.map.gate.r);
+      else if (e.type === 'stab') {
+        this.fx.push({ kind: 'stab', x: e.x, y: e.y, t: DRAW.fxTime });
+        this.parts.sparks(e.x, e.y - 6, FX.spark, 4);
+      }
       else if (e.type === 'towerBroken' || e.type === 'wireBroken') {
         const s = this.world.slots.find((sl) => sl.id === e.slot);
         this.fx.push({ kind: 'broken', x: s.x, y: s.y, t: DRAW.fxTime * 3 });
+        this.parts.smokeColumn(s.x, s.y);
+        this.parts.sparks(s.x, s.y - 6, FX.fire, 8);
       } else if (e.type === 'drop') this.fx.push({ kind: 'drop', x: this.map.truck.x, y: this.map.truck.y, t: DRAW.fxTime * 2 });
       else if (e.type === 'boom') {
         this.fx.push({ kind: 'boom', x: e.x, y: e.y, t: DRAW.fxTime * 2 });
+        this.parts.explosion(e.x, e.y, BUILD.mine.radius * 0.8);
         this.cameras.main.shake(150, 0.006);
       } else if (e.type === 'shell') {
         this.fx.push({ kind: 'shell', x: e.x, y: e.y, t: DRAW.fxTime * 2 });
+        this.parts.explosion(e.x, e.y, ABILITIES.artillery.radius);
         this.cameras.main.shake(180, 0.008);
       } else if (e.type === 'reinforce') this.fx.push({ kind: 'drop', x: e.x, y: e.y, t: DRAW.fxTime * 2 });
-      else if (e.type === 'smash') this.fx.push({ kind: 'smash', x: e.x, y: e.y, t: DRAW.fxTime });
+      else if (e.type === 'smash') {
+        this.fx.push({ kind: 'smash', x: e.x, y: e.y, t: DRAW.fxTime });
+        this.parts.sparks(e.x, e.y - 6, 0xffffff, 6);
+      }
       else if (e.type === 'leak') this.cameras.main.shake(120, 0.004);
     }
     this.world.events.length = 0;
@@ -541,8 +556,17 @@ export class GameScene extends Phaser.Scene {
     this.hidePool();
 
     // Снаряды — над фигурами
+    // трассеры: короткая линия по направлению полёта; при вылете — вспышка у ствола
     for (const s of w.shots) {
-      top.fillStyle(s.from === 'heli' ? COLORS.bullet : COLORS.towerBullet).fillCircle(s.x, s.y - 8, DRAW.bulletRadius);
+      const dx = s.target.x - s.x;
+      const dy = s.target.y - s.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (!s.flashed) {
+        s.flashed = true;
+        this.parts.muzzle(s.x, s.y - (s.from === 'tower' ? DRAW.nestGunH : 0), Math.atan2(dy, dx));
+      }
+      const col = s.from === 'heli' ? COLORS.bullet : COLORS.towerBullet;
+      top.lineStyle(2, col, 0.95).lineBetween(s.x, s.y - 8, s.x - (dx / d) * DRAW.tracer, s.y - 8 - (dy / d) * DRAW.tracer);
     }
 
     // Вертолёт: тень на земле, корпус — спрайт сверху (вращается), винт — диском и лопастями
@@ -579,6 +603,8 @@ export class GameScene extends Phaser.Scene {
       else if (fx.kind === 'drop') f.lineStyle(3, COLORS.truck, Math.min(1, k)).strokeCircle(fx.x, fx.y, HELI.dropRadius * (1.4 - 0.2 * k));
     }
     this.fx = this.fx.filter((fx) => fx.t > 0);
+    this.parts.update(dt);
+    this.drawAmbient();
 
     // Меню постройки
     const m = this.menuG;
@@ -624,6 +650,30 @@ export class GameScene extends Phaser.Scene {
     l.fillRect(0, 0, VIEW.width, VIEW.height);
     const gate = this.map.gate;
     for (let i = 6; i >= 1; i--) l.fillStyle(P.gateGlow, 0.035).fillCircle(gate.x, gate.y, gate.r * (1 + i * 0.6));
+  }
+
+  // Живой фон: медленные тени облаков по полю и бегущие гребни волн на море (по реальному времени)
+  drawAmbient() {
+    const a = this.ambG;
+    a.clear();
+    const t = this.time.now / 1000;
+    const A = DRAW.ambient;
+    for (let i = 0; i < A.clouds; i++) {
+      const span = VIEW.width + 400;
+      const x = ((t * A.cloudSpeed * (1 + i * 0.17) + i * 397) % span) - 200;
+      const y = 90 + ((i * 211) % (VIEW.height - 220));
+      for (const [dx, dy, rx, ry] of [[0, 0, 120, 60], [70, 14, 90, 46], [-60, 18, 80, 40]]) {
+        a.fillStyle(0x1a1430, A.cloudAlpha).fillEllipse(x + dx, y + dy, rx * 2, ry * 2);
+      }
+    }
+    const seaTop = VIEW.height - TERRAIN.seaH;
+    a.lineStyle(2, 0xffffff, 0.45);
+    for (let i = 0; i < A.waves; i++) {
+      const y = seaTop + 10 + ((i * 13) % (TERRAIN.seaH - 14));
+      const x = ((t * A.waveSpeed + i * 173) % (VIEW.width + 60)) - 30;
+      const w = 14 + (i % 3) * 8;
+      a.lineBetween(x, y, x + w, y - 1);
+    }
   }
 
   // Неподвижный спрайт (дом, дерево, бункер, грузовик): точка опоры — по sprites.json, глубина — по y

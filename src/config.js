@@ -645,6 +645,20 @@ export const BUTTON = {
   },
 };
 
+// Частицы (src/art/particles.js). Только картинка.
+export const FX = {
+  max: 700,             // больше не держим — старые уходят первыми
+  flash: 0xfff2a0,
+  spark: 0xffd23a,
+  fire: 0xff8a2e,
+  fireHot: 0xffd85a,
+  smoke: 0x4a4a52,
+  smokeLight: 0x9a98a8,
+  debris: 0x3a3226,
+  shock: 0xfff4e0,
+  portal: 0xd9b3ff,
+};
+
 // Размеры отрисовки (только картинка, на правила не влияют)
 export const DRAW = {
   slotRadius: 22,
@@ -671,6 +685,8 @@ export const DRAW = {
   survivorRadius: 6,
   survivorRing: 16,
   bulletRadius: 2.5,
+  tracer: 12,           // px — длина трассера
+  ambient: { clouds: 4, cloudSpeed: 9, cloudAlpha: 0.05, waves: 18, waveSpeed: 22 }, // тени облаков, волны
   wireWidth: 34,
   hpBarW: 28,
   hpBarH: 4,

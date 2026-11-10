@@ -73,7 +73,7 @@ export const T = {
   again: 'Ещё раз',
   bot: (plan, speed) => `бот ${plan} ×${speed}`,
   // Герои — см. docs/characters.md
-  speakers: { sergeant: 'Сержант Хан Тхэ Сок', medic: 'Медик Юн Со Хи', institute: 'Диспетчер Ли · «Сектор 67»' },
+  speakers: { sergeant: 'Сержант Хан Тхэ Сок', medic: 'Медик Юн Со Хи', institute: 'Диспетчер Ли · «Сектор 67»', system: 'СИСТЕМА · 시스템' },
   // Реплики радио: ключ → [кто, текст]. Каждая звучит не больше раза за забег.
   // l<уровень>_start — в начале, l<уровень>_w<n> — перед волной n; остальные — в ответ на события.
   radio: {
@@ -211,7 +211,8 @@ export const T = {
     medkit: { name: 'Аптечка', effect: 'убежищу +1' },
     volunteers: { name: 'Добровольцы', effect: '+2 чел.' },
     flare: { name: 'Сигнальная ракета', effect: 'умения готовы' },
-    notice: (it) => `ЯЩИК СНАБЖЕНИЯ · ${it.name} · ${it.effect}`,
+    // идёт титрами от «СИСТЕМЫ» — имя уже на нашивке
+    notice: (it) => `Ящик снабжения: ${it.name} · ${it.effect}`,
   },
   bossBar: (name) => `БОСС ПРОРЫВА · ${name}`,
   // задания серии
@@ -229,7 +230,7 @@ export const T = {
       noOwnMine: 'Свои мины ничего не сломали',
     })[q.kind],
     reward: (r) => (r?.people ? `+${r.people} чел.` : r?.xp ? `+${r.xp} опыта` : ''),
-    done: (name, reward) => `СИСТЕМА · Задание выполнено: ${name}${reward ? ` · ${reward}` : ''}`,
+    done: (name, reward) => `Задание выполнено: ${name}${reward ? ` · ${reward}` : ''}`,
     map: (k, n) => `задания ${k}/${n}`,
     // в отчёте скрытое раскрывается — игрок узнаёт, что это было (жанр: «скрытое задание выполнено/провалено»)
     report: (qs, name) => `Задания: ${qs.map((q) => `${q.state === 'done' ? '✓' : '✗'} ${name(q)}${q.hidden ? ' (скрытое)' : ''}`).join(' · ')}`,

@@ -1,4 +1,5 @@
-// Радио: плашка сверху — портрет, имя, реплика. Очередь, каждая реплика не больше раза за забег.
+// Радио — титры внизу экрана: полоса выезжает снизу, пока кто-то говорит. Портрет слева, имя, реплика.
+// Очередь; реплика по ключу (T.radio) — не больше раза за забег, «СИСТЕМА» (задания, ящики) — текстом без повторов-проверки.
 import { VIEW, RADIO, SPEAKERS, COLORS } from '../config.js';
 import { T } from '../texts.js';
 
@@ -14,14 +15,14 @@ export class Radio {
     const H = RADIO.height;
     const P = RADIO.pad;
     const S = RADIO.portrait;
-    this.box = scene.add.container(RADIO.left, -H - 10).setDepth(15);
+    this.box = scene.add.container(RADIO.left, VIEW.height + 10).setDepth(15);
     // корпус полевой рации: металлическая рамка, тёмная лицевая панель, винты по углам
     const bg = scene.add.graphics();
-    bg.fillStyle(0x000000, 0.35).fillRoundedRect(3, 5, W, H, 12);
-    bg.fillStyle(RADIO.caseColor).fillRoundedRect(0, 0, W, H, 12);
+    bg.fillStyle(0x000000, 0.3).fillRoundedRect(3, -3, W, H + 20, { tl: 12, tr: 12, bl: 0, br: 0 });
+    bg.fillStyle(RADIO.caseColor, RADIO.alpha).fillRoundedRect(0, 0, W, H + 20, { tl: 12, tr: 12, bl: 0, br: 0 });
     bg.fillStyle(RADIO.caseLight).fillRoundedRect(0, 0, W, 6, { tl: 12, tr: 12, bl: 0, br: 0 });
     bg.fillStyle(RADIO.face, RADIO.alpha).fillRoundedRect(6, 6, W - 12, H - 12, 8);
-    for (const [sx, sy] of [[12, 12], [W - 12, 12], [12, H - 12], [W - 12, H - 12]]) {
+    for (const [sx, sy] of [[12, 12], [W - 12, 12]]) {
       bg.fillStyle(RADIO.screw).fillCircle(sx, sy, 3.5);
       bg.lineStyle(1, 0x000000, 0.6).lineBetween(sx - 2.5, sy, sx + 2.5, sy);
     }
@@ -53,21 +54,36 @@ export class Radio {
   say(key) {
     if (!T.radio[key] || this.said.has(key)) return;
     this.said.add(key);
-    this.queue.push(key);
+    this.push(T.radio[key]);
+  }
+
+  // Строка без ключа: «СИСТЕМА» — задание выполнено, ящик снабжения
+  sayText(who, text) {
+    this.push([who, text]);
+  }
+
+  push(item) {
+    this.queue.push(item);
     if (this.queue.length > RADIO.maxQueue) this.queue.shift();
+  }
+
+  // Говорит ли сейчас (полоса титров на экране)
+  get active() {
+    return !!this.current;
   }
 
   // Замолчать и убрать плашку (экран итогов)
   stop() {
     this.queue = [];
     this.current = null;
-    this.box.y = -RADIO.height - 10;
+    this.box.y = VIEW.height + 10;
     this.stopped = true;
   }
 
   update(dt) {
     if (this.stopped) return;
-    const hiddenY = -RADIO.height - 10;
+    const hiddenY = VIEW.height + 10;
+    const shownY = VIEW.height - RADIO.height;
     if (!this.current) {
       this.pause -= dt;
       if (this.pause > 0 || !this.queue.length) return;
@@ -77,7 +93,7 @@ export class Radio {
     c.t += dt;
     // выезд, показ, уезд
     const k = Math.min(1, c.t / RADIO.slide, (c.dur - c.t) / RADIO.slide);
-    this.box.y = hiddenY + (RADIO.y - hiddenY) * Math.max(0, k);
+    this.box.y = hiddenY + (shownY - hiddenY) * Math.max(0, k);
     // текст печатается по буквам
     const shown = Math.min(c.full.length, Math.floor(c.t * RADIO.cps));
     if (shown !== c.shown) {
@@ -101,8 +117,9 @@ export class Radio {
     }
   }
 
-  show(key) {
-    const [who, text] = T.radio[key];
+  show(item) {
+    const [who, text] = item;
+    const key = text;
     const sp = SPEAKERS[who];
     // заранее раскладываем текст по строкам, чтобы при печати слова не прыгали
     const full = this.line.getWrappedText(text).join('\n');
@@ -119,7 +136,21 @@ export class Radio {
     if (hasArt) {
       this.art.setTexture(tex).setDisplaySize(RADIO.portrait, RADIO.portrait);
       this.portrait.clear();
-    } else this.drawPortrait(sp);
+    } else if (sp.teletype) this.drawTeletype(sp);
+    else this.drawPortrait(sp);
+  }
+
+  // «СИСТЕМА»: вместо лица — голубой лист телетайпа с бегущими строками
+  drawTeletype(sp) {
+    const g = this.portrait;
+    const s = RADIO.portrait;
+    const x = RADIO.pad;
+    const y = RADIO.pad;
+    g.clear();
+    g.fillStyle(sp.bg).fillRect(x, y, s, s);
+    g.fillStyle(0xdde8ee).fillRect(x + s * 0.14, y + s * 0.1, s * 0.72, s * 0.8);
+    for (let i = 0; i < 6; i++) g.fillStyle(0x1e5a8a, 0.8).fillRect(x + s * 0.2, y + s * (0.18 + i * 0.11), s * (i % 2 ? 0.42 : 0.58), s * 0.05);
+    for (let i = 0; i < 5; i++) g.fillStyle(0x7a94a8).fillCircle(x + s * 0.08, y + s * (0.18 + i * 0.16), 2.5).fillCircle(x + s * 0.92, y + s * (0.18 + i * 0.16), 2.5);
   }
 
   // Портрет-заглушка из примитивов: плечи, голова, волосы, гарнитура / очки / крест

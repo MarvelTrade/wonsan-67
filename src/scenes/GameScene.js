@@ -1,7 +1,7 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM, CORES, ELITE, BOSS, CRATES } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM, CORES, ELITE, BOSS, CRATES, RADIO } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
@@ -267,17 +267,9 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // Плашка «СИСТЕМА · Задание выполнено» под радио: телетайпный голубой, гаснет сама
+  // «СИСТЕМА · Задание выполнено», ящики снабжения — теми же титрами внизу, что и радио
   notice(text) {
-    this.noticeUi?.forEach((o) => o.destroy());
-    const t = this.add.text(VIEW.width / 2, HUD.noticeY, text, {
-      fontFamily: '"Courier New", Courier, monospace', fontSize: `${HUD.questFont + 3}px`, fontStyle: 'bold', color: '#16202a',
-    }).setOrigin(0.5).setDepth(17);
-    const bg = this.add.graphics().setDepth(16.9);
-    bg.fillStyle(0xdde8ee, 0.95).fillRect(t.x - t.width / 2 - 16, t.y - t.height / 2 - 8, t.width + 32, t.height + 16);
-    bg.lineStyle(2, 0x1e5a8a).strokeRect(t.x - t.width / 2 - 16, t.y - t.height / 2 - 8, t.width + 32, t.height + 16);
-    this.noticeUi = [t, bg];
-    this.tweens.add({ targets: [t, bg], alpha: 0, delay: HUD.noticeTime * 1000, duration: 500, onComplete: () => [t, bg].forEach((o) => o.destroy()) });
+    this.radio.sayText('system', text);
   }
 
   // ---------- Досье ----------
@@ -827,15 +819,17 @@ export class GameScene extends Phaser.Scene {
       }).setOrigin(0.5, 1).setDepth(15);
     }
     this.bossText.setVisible(!!b && !this.card);
-    if (b && !this.aiming) this.hint.setVisible(false); // подсказка внизу — на месте полосы
-    else this.hint.setVisible(true);
+    // подсказка внизу прячется под полосой босса и под титрами; при прицеливании — видна всегда
+    this.hint.setVisible(!!this.aiming || (!b && !this.radio.active));
     if (!b || this.card) return;
     this.bossText.setText(T.bossBar(T.dossier.bosses[b.type].name));
     const x0 = VIEW.width / 2 - BOSS.barW / 2;
-    g.fillStyle(0x1a0a2a, 0.85).fillRect(x0 - 3, BOSS.barY - 3, BOSS.barW + 6, BOSS.barH + 6);
-    g.fillStyle(0x3a2a4a).fillRect(x0, BOSS.barY, BOSS.barW, BOSS.barH);
-    g.fillStyle(BOSS.barColor).fillRect(x0, BOSS.barY, BOSS.barW * Math.max(0, b.hp / b.maxHp), BOSS.barH);
-    for (let i = 1; i < 10; i++) g.fillStyle(0x1a0a2a, 0.6).fillRect(x0 + (BOSS.barW * i) / 10 - 1, BOSS.barY, 2, BOSS.barH);
+    const by = this.radio.active ? VIEW.height - RADIO.height - BOSS.barH - 10 : BOSS.barY;
+    this.bossText.setY(by - 4);
+    g.fillStyle(0x1a0a2a, 0.85).fillRect(x0 - 3, by - 3, BOSS.barW + 6, BOSS.barH + 6);
+    g.fillStyle(0x3a2a4a).fillRect(x0, by, BOSS.barW, BOSS.barH);
+    g.fillStyle(BOSS.barColor).fillRect(x0, by, BOSS.barW * Math.max(0, b.hp / b.maxHp), BOSS.barH);
+    for (let i = 1; i < 10; i++) g.fillStyle(0x1a0a2a, 0.6).fillRect(x0 + (BOSS.barW * i) / 10 - 1, by, 2, BOSS.barH);
   }
 
   hpBar(g, x, y, k, width = DRAW.hpBarW) {

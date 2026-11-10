@@ -581,11 +581,20 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Места под постройку
+    // по цене: хватает людей на самое дешёвое, что здесь можно поставить, — заливка и пульсирующее кольцо
+    const pulse = 0.5 + 0.5 * Math.sin((this.time.now / 1000) * DRAW.slotPulse);
+    const pr = DRAW.slotRadius;
+    const pk = DRAW.padSquash;
     for (const s of w.slots) {
       if (s.building) continue;
-      const canAny = w.people >= Math.min(BUILD.tower.cost, BUILD.wire.cost);
-      g.lineStyle(2, canAny ? COLORS.slotAffordable : COLORS.slot, canAny ? 0.9 : 0.35);
-      g.strokeCircle(s.x, s.y, DRAW.slotRadius);
+      const kinds = this.menuKinds(s);
+      const can = kinds.length > 0 && w.people >= Math.min(...kinds.map((k) => BUILD[k].cost));
+      if (can) {
+        g.fillStyle(COLORS.slotAffordable, 0.16 + 0.12 * pulse).fillEllipse(s.x, s.y, pr * 2, pr * 2 * pk);
+        g.lineStyle(3, COLORS.slotAffordable, 0.95).strokeEllipse(s.x, s.y, pr * 2, pr * 2 * pk);
+        const grow = 1.08 + 0.3 * pulse;
+        g.lineStyle(2, COLORS.slotAffordable, 0.55 * (1 - pulse)).strokeEllipse(s.x, s.y, pr * 2 * grow, pr * 2 * pk * grow);
+      } else g.lineStyle(2, COLORS.slot, 0.4).strokeEllipse(s.x, s.y, pr * 2, pr * 2 * pk);
       g.lineStyle(1, COLORS.slot, 0.25).lineBetween(s.x, s.y, s.roadX, s.roadY);
     }
 

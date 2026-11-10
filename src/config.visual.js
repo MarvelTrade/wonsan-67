@@ -348,7 +348,8 @@ export const FX = {
 
 // Размеры отрисовки (только картинка, на правила не влияют)
 export const DRAW = {
-  slotRadius: 22,
+  slotRadius: 30,       // 22 → 30 (план фазы 1: место под постройку заметное; нажатие — BUILD.menuRadius)
+  slotPulse: 4,         // рад/с — пульс кольца у места, на которое хватает людей
   towerSize: 26,
   barrel: 22,
   trenchRadius: 24,

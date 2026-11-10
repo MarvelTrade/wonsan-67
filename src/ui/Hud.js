@@ -57,39 +57,62 @@ export class Hud {
     }
     this.tWave.setPosition(H.margin + H.pad + pipsW + 8, y2);
 
-    // уровень героя («система») и полоска опыта до следующего
-    // своей строкой под волной: справа сверху висит радио
-    const lx = H.margin;
-    const y3 = y2 + h2 + H.gap;
+    // HUD — две верхние строки (зоны плана фазы 1): «Ур.» и задания — в той же строке, что волна.
+    // Раньше они шли столбиком до y≈250 и закрывали дом с людьми (ур. 3) и само убежище (ур. 2).
+    const lx = H.margin + w2 + H.gap;
     this.tLevel.setText(T.level(world.heroLevel));
     const lw = H.pad * 2 + Math.max(this.tLevel.width, 56);
-    this.box(lx, y3 - h2 / 2, lw, h2, world.pendingLevels > 0 ? H.levelUp : null);
-    this.tLevel.setPosition(lx + H.pad, y3 - 4);
-    g.fillStyle(H.empty).fillRect(lx + H.pad, y3 + h2 / 2 - 9, lw - H.pad * 2, 4);
-    g.fillStyle(H.xp).fillRect(lx + H.pad, y3 + h2 / 2 - 9, (lw - H.pad * 2) * world.xpProgress, 4);
+    this.box(lx, y2 - h2 / 2, lw, h2, world.pendingLevels > 0 ? H.levelUp : null);
+    this.tLevel.setPosition(lx + H.pad, y2 - 4);
+    g.fillStyle(H.empty).fillRect(lx + H.pad, y2 + h2 / 2 - 9, lw - H.pad * 2, 4);
+    g.fillStyle(H.xp).fillRect(lx + H.pad, y2 + h2 / 2 - 9, (lw - H.pad * 2) * world.xpProgress, 4);
 
-    // задания серии: □ открыто (со счётчиком), ✓ выполнено, ✗ провалено; скрытое — без названия, пока не выполнено
+    // задания: свёрнуто — плашка «Задания k/n» с тремя отметками; нажал — список на несколько секунд
     const qs = world.quests;
     if (!qs.length) return;
     if (!this.tQuests) {
       this.tQuests = qs.map(() => this.scene.add.text(0, 0, '', { fontFamily: 'Arial, sans-serif', fontSize: `${H.questFont}px`, fontStyle: 'bold' }).setDepth(15).setOrigin(0, 0.5));
+      this.tQChip = this.scene.add.text(0, 0, '', { fontFamily: 'Arial, sans-serif', fontSize: `${H.font * 0.8}px`, fontStyle: 'bold', color: H.text }).setDepth(15).setOrigin(0, 0.5);
+      this.qZone = this.scene.add.zone(0, 0, 10, 10).setOrigin(0).setDepth(15).setInteractive({ useHandCursor: true });
+      this.qZone.on('pointerdown', () => {
+        this.questsUntil = this.questsOpen ? 0 : this.scene.time.now + H.questsShow * 1000;
+      });
+      this.questsUntil = this.scene.time.now + H.questsStart * 1000; // в начале уровня — раскрыто
     }
+    const done = qs.filter((q) => q.state === 'done').length;
+    const qx = lx + lw + H.gap;
+    this.tQChip.setText(T.quests.chip(done, qs.length));
+    const markW = qs.length * 14;
+    const qw = H.pad * 2 + this.tQChip.width + 8 + markW;
+    this.box(qx, y2 - h2 / 2, qw, h2, null);
+    this.tQChip.setPosition(qx + H.pad, y2);
+    qs.forEach((q, i) => {
+      const mx = qx + H.pad + this.tQChip.width + 8 + i * 14 + 5;
+      const col = q.state === 'done' ? H.ok : q.state === 'failed' ? H.alert : H.empty;
+      g.fillStyle(col).fillRect(mx - 5, y2 - 5, 10, 10);
+    });
+    this.qZone.setPosition(qx, y2 - h2 / 2).setSize(qw, h2);
+    if (this.qZone.input) this.qZone.input.hitArea.setSize(qw, h2);
+
+    // раскрытый список — под строкой, только пока не истёк таймер
+    this.questsOpen = this.scene.time.now < this.questsUntil;
     const lineH = H.questFont + 8;
-    let y = y3 + h2 / 2 + H.gap + lineH / 2;
+    const y = y2 + h2 / 2 + H.gap + lineH / 2;
     let wMax = 0;
     qs.forEach((q, i) => {
       const t = this.tQuests[i];
+      t.setVisible(this.questsOpen);
+      if (!this.questsOpen) return;
       const v = world.questValue(q);
       const name = q.hidden && q.state === 'open' ? `??? ${T.quests.hidden}` : T.quests.name(q);
       const mark = q.state === 'done' ? '✓' : q.state === 'failed' ? '✗' : '□';
       const count = q.state === 'open' && v !== null ? `  ${Math.min(v, q.n)}/${q.n}` : '';
       t.setText(`${mark} ${name}${count}`).setColor(q.state === 'done' ? H.questDone : q.state === 'failed' ? H.questFailed : H.questOpen);
       t.setAlpha(q.state === 'failed' ? 0.75 : 1);
-      t.setPosition(H.margin + H.pad, y + i * lineH);
+      t.setPosition(qx + H.pad, y + i * lineH);
       wMax = Math.max(wMax, t.width);
     });
-    // подложка под списком — потом, но глубже текста (g рисуется на 14)
-    g.fillStyle(H.fill, H.alpha * 0.8).fillRoundedRect(H.margin, y - lineH / 2 - 4, wMax + H.pad * 2, lineH * qs.length + 8, H.radius);
+    if (this.questsOpen) g.fillStyle(H.fill, H.alpha).fillRoundedRect(qx, y - lineH / 2 - 4, wMax + H.pad * 2, lineH * qs.length + 8, H.radius);
   }
 
   // плашка: фон, значок, текст; extra — дорисовать поверх (полоска убежища)

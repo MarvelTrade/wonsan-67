@@ -306,6 +306,8 @@ export const HUD = {
   waveOn: 0x6a3a8a,
   xp: 0x9ad8ff,
   levelUp: 0x1e5a8a,
+  questsShow: 5,        // с — список заданий раскрыт после нажатия на плашку «Задания»
+  questsStart: 7,       // с — раскрыт в начале уровня, чтобы цели были видны
   questFont: 19,        // список заданий под «Ур.»: на телефоне ≈ 10 px
   questDone: '#9bd36e',
   questFailed: '#d08a7a',

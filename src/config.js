@@ -556,9 +556,9 @@ const QUESTS_3 = [
 ];
 
 export const LEVELS = [
-  { id: 1, title: 'Серия 2 · Проволока', rank: 'E', quests: QUESTS_1, map: MAP_1, waves: WAVES_1, builds: ['tower', 'wire'], abilities: ['artillery'], bot: BOT_1 },
-  { id: 2, title: 'Серия 3 · Окоп', rank: 'D', quests: QUESTS_2, map: MAP_2, waves: WAVES_2, survivors: SURVIVORS_2, builds: ['tower', 'wire', 'trench'], abilities: ['artillery', 'reinforce'], bot: BOT_2 },
-  { id: 3, title: 'Серия 4 · Мины', rank: 'C', quests: QUESTS_3, map: MAP_3, waves: WAVES_3, survivors: SURVIVORS_3, builds: ['tower', 'wire', 'trench', 'mine'], abilities: ['artillery', 'reinforce'], bot: BOT_3 },
+  { id: 1, title: 'Глава 1 · Проволока', rank: 'E', quests: QUESTS_1, map: MAP_1, waves: WAVES_1, builds: ['tower', 'wire'], abilities: ['artillery'], bot: BOT_1 },
+  { id: 2, title: 'Глава 2 · Окоп', rank: 'D', quests: QUESTS_2, map: MAP_2, waves: WAVES_2, survivors: SURVIVORS_2, builds: ['tower', 'wire', 'trench'], abilities: ['artillery', 'reinforce'], bot: BOT_2 },
+  { id: 3, title: 'Глава 3 · Мины', rank: 'C', quests: QUESTS_3, map: MAP_3, waves: WAVES_3, survivors: SURVIVORS_3, builds: ['tower', 'wire', 'trench', 'mine'], abilities: ['artillery', 'reinforce'], bot: BOT_3 },
 ];
 
 // Общее для бота на всех уровнях
@@ -672,6 +672,20 @@ export const COVER = {
   volumeSize: 24, heroName: 34, heroPower: 20,
   tapY: 36, tapSize: 26,
   turn: 0.9,                           // с — переворот страницы
+};
+
+// Оглавление тома (src/scenes/MapScene.js): главы — косые панели манхвы. Только картинка.
+export const CHAPTERS = {
+  gutter: 14, top: 92, headerH: 78, headerSize: 26, slant: 46, pad: 22,
+  portalY: 214, portalR: 54,
+  enemyY: 540, enemyScale: 1.7,
+  tagSize: 20, titleY: 596, titleSize: 44, teaserSize: 18, starsY: 680, metaSize: 18, stateSize: 20,
+  // srcX — откуда в арте побережья берётся полоса панели; enemy — новый враг главы (pack — сколько в пачке)
+  list: [
+    { srcX: 0, portalDx: 50, enemy: 'spearman', enemyDx: -40, pack: 1 },
+    { srcX: 420, portalDx: 40, enemy: 'berserker', enemyDx: -40, pack: 1 },
+    { srcX: 780, portalDx: 20, enemy: 'goblin', enemyDx: -50, pack: 3 },
+  ],
 };
 
 // Фон уровня (src/art/terrain.js): палитра и плотность. Только картинка.

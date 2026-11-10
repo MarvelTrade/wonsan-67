@@ -6,6 +6,8 @@ import * as Phaser from 'phaser';
 import { VIEW, COLORS, SPEAKERS, SPRITES, DRAW, GATE_RANKS, WORLD_MAP, COVER as C } from '../config.js';
 import { T } from '../texts.js';
 import { Particles } from '../art/particles.js';
+import { drawPortal } from '../art/portal.js';
+import { turnPage } from '../ui/pageTurn.js';
 
 const W = VIEW.width;
 const H = VIEW.height;
@@ -243,7 +245,8 @@ export class CoverScene extends Phaser.Scene {
       gl.lineBetween(G.x + Math.cos(a) * G.r * 0.9, G.y + Math.sin(a) * G.r * 0.9, G.x + Math.cos(a) * len, G.y + Math.sin(a) * len);
     }
     for (let k = 3; k > 0; k--) gl.fillStyle(COLORS.gate, 0.08).fillCircle(G.x, G.y, G.r * (1.15 + k * 0.25));
-    this.drawPortal(this.gateG, G, t);
+    this.gateG.clear();
+    drawPortal(this.gateG, G, t);
     // частицы втягиваются в разрыв
     this.spawnT -= dt;
     if (this.spawnT <= 0) {
@@ -255,73 +258,8 @@ export class CoverScene extends Phaser.Scene {
     this.sfx.setPosition(C.sfx.x + Math.sin(t * 40) * 1.5, C.sfx.y + Math.cos(t * 33) * 1.5);
   }
 
-  // Разрыв в небе: рваный светящийся край, внутри воронка от тёмно-фиолетового к белому ядру, молнии наружу
-  drawPortal(g, G, t) {
-    g.clear();
-    const rim = [];
-    const n = 28;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2;
-      const j = 1 + 0.09 * Math.sin(i * 5.3 + t * 3) + 0.06 * Math.sin(i * 2.1 - t * 2) + (i % 2 ? 0.05 : -0.04);
-      rim.push({ x: G.x + Math.cos(a) * G.r * j, y: G.y + Math.sin(a) * G.r * j * 0.92 });
-    }
-    // воронка: слои от края к центру светлеют
-    const layers = [[1, 0x2a0a4a], [0.86, 0x4a1a8a], [0.68, 0x6a2ac0], [0.5, 0x9a5ae8], [0.32, 0xd9b3ff], [0.16, 0xffffff]];
-    g.fillStyle(layers[0][1]).fillPoints(rim, true);
-    for (const [k, col] of layers.slice(1)) g.fillStyle(col, 0.85).fillEllipse(G.x, G.y, G.r * 2 * k, G.r * 2 * k * 0.92);
-    // закрученные рукава
-    for (let i = 0; i < 5; i++) {
-      const a0 = t * (1.2 + i * 0.25) + i * 1.25;
-      const rr = G.r * (0.25 + i * 0.14);
-      g.lineStyle(5 - i * 0.6, i % 2 ? 0xffffff : 0xe0c0ff, 0.75);
-      g.beginPath().arc(G.x, G.y, rr, a0, a0 + Math.PI * 0.9, false).strokePath();
-    }
-    // светящийся рваный край
-    g.lineStyle(6, COLORS.gate, 0.5).strokePoints(rim, true);
-    g.lineStyle(3, 0xf0d8ff, 0.95).strokePoints(rim, true);
-    // молнии от края наружу — мигают
-    for (let i = 0; i < 5; i++) {
-      if (Math.sin(t * 9 + i * 2.7) < 0.2) continue;
-      const a = i * 1.26 + Math.sin(t * 0.7 + i) * 0.4;
-      let x = G.x + Math.cos(a) * G.r;
-      let y = G.y + Math.sin(a) * G.r * 0.92;
-      g.lineStyle(2.5, 0xf6e8ff, 0.9);
-      for (let s = 0; s < 4; s++) {
-        const nx = x + Math.cos(a) * 22 + Math.sin(t * 31 + s * 3 + i) * 10;
-        const ny = y + Math.sin(a) * 22 + Math.cos(t * 27 + s * 5 + i) * 10;
-        g.lineBetween(x, y, nx, ny);
-        x = nx;
-        y = ny;
-      }
-    }
-  }
-
-  // ---------- переворот страницы ----------
   turnPage() {
-    if (this.turning) return;
-    this.turning = true;
-    this.scene.launch('map');
-    this.scene.bringToTop();
-    const cam = this.cameras.main;
-    const edge = this.add.graphics().setDepth(50);
-    this.tweens.addCounter({
-      from: 0,
-      to: 1,
-      duration: C.turn * 1000,
-      ease: 'Cubic.easeIn',
-      onUpdate: (tw) => {
-        const k = tw.getValue();
-        const w = Math.max(1, Math.round(W * (1 - k)));
-        cam.setViewport(0, 0, w, H);
-        // загиб: тень и светлый край бумаги у уходящего края
-        edge.clear();
-        const s = 30 + 90 * Math.sin(k * Math.PI);
-        edge.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0.55, 0, 0.55);
-        edge.fillRect(w - s, 0, s, H);
-        edge.fillStyle(0xf2ede2, 0.95).fillRect(w - 4, 0, 4, H);
-      },
-      onComplete: () => this.scene.stop(),
-    });
+    turnPage(this, 'map');
   }
-}
 
+}

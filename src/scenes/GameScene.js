@@ -1,7 +1,7 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM, CORES } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
@@ -381,6 +381,8 @@ export class GameScene extends Phaser.Scene {
     else if (e.type === 'artilleryCalled') r.say('artillery');
     else if (e.type === 'reinforce') r.say('reinforce');
     else if (e.type === 'soldierDown') r.say('soldier_down');
+    else if (e.type === 'coreDrop') r.say('core_drop');
+    else if (e.type === 'core') r.say('core_taken');
   }
 
   consumeEvents() {
@@ -391,6 +393,7 @@ export class GameScene extends Phaser.Scene {
       else if (e.type === 'hit') this.parts.sparks(e.x, e.y - 8, FX.spark, 3);
       else if (e.type === 'spawn') this.parts.portal(this.map.gate.x, this.map.gate.y, this.map.gate.r);
       else if (e.type === 'levelUp') this.parts.levelUp(this.world.heli.x, this.world.heli.y);
+      else if (e.type === 'core') this.parts.core(e.x, e.y);
       else if (e.type === 'stab') {
         this.fx.push({ kind: 'stab', x: e.x, y: e.y, t: DRAW.fxTime });
         this.parts.sparks(e.x, e.y - 6, FX.spark, 4);
@@ -507,6 +510,20 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(1.5, 0x8a8a80);
       for (const dx of [-0.5, 0, 0.5]) g.lineBetween(m.x + dx * mr, m.y - mr * 0.4, m.x + dx * mr * 1.3, m.y - mr * 1.2);
       if (Math.sin(w.t * 6) > 0) g.fillStyle(COLORS.mineLight).fillCircle(m.x, m.y - mr * 0.5, mr * 0.3);
+    }
+
+    // Ядра: фиолетовый кристалл качается над землёй, под ним тень и свечение; перед тем как погаснуть — мигает
+    for (const c of w.cores) {
+      if (c.life < CORES.blinkAt && Math.sin(w.t * 14) < 0) continue;
+      const lift = CORES.size + Math.sin(w.t * 3 + c.id) * CORES.bob;
+      const s = CORES.size;
+      const t = this.topG;
+      g.fillStyle(0x000000, 0.25).fillEllipse(c.x, c.y + 2, s * 2, s * 0.8);
+      g.fillStyle(CORES.color, 0.18 + 0.08 * Math.sin(w.t * 5 + c.id)).fillCircle(c.x, c.y - lift, CORES.glow);
+      const y = c.y - lift;
+      t.fillStyle(CORES.dark).fillTriangle(c.x, y - s * 1.4, c.x + s, y, c.x, y + s * 1.2);
+      t.fillStyle(CORES.color).fillTriangle(c.x, y - s * 1.4, c.x - s, y, c.x, y + s * 1.2);
+      t.fillStyle(CORES.light).fillTriangle(c.x, y - s * 1.4, c.x - s * 0.45, y - s * 0.2, c.x, y - s * 0.1);
     }
 
     // Артудар в пути: метка цели сжимается к разрыву

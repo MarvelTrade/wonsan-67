@@ -1,5 +1,5 @@
 // Вся логика забега без Phaser: её гоняет и сцена в браузере, и бот в Node (scripts/sim.mjs).
-import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW, STARS, CALL_EARLY, ABILITIES, SYSTEM } from '../config.js';
+import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW, STARS, CALL_EARLY, ABILITIES, SYSTEM, CORES } from '../config.js';
 import { Path, rng } from './path.js';
 
 // Границы мира — по размеру экрана (мир = экран)
@@ -49,6 +49,9 @@ export class World {
     this.perks = {};
     this.mods = { gunDmg: 1, gunRate: 1, wireHp: 1, mineDmg: 1, abilityCd: 1, heliCap: 0 };
     this.perkRand = rng((seed ^ 0x5eed67) >>> 0);
+    // Ядра на земле (свой генератор — прежние seed не сбиваются)
+    this.cores = [];
+    this.coreRand = rng((seed ^ 0xc0e367) >>> 0);
     this.enemies = [];
     this.shots = [];
     this.survivors = [];
@@ -69,6 +72,7 @@ export class World {
       leaked: 0,
       calledEarly: 0, earlyBonus: 0,
       abilityUsed: { artillery: 0, reinforce: 0 }, soldiersLost: 0,
+      coresDropped: 0, coresTaken: 0,
     };
   }
 
@@ -294,6 +298,18 @@ export class World {
       }
       this.survivors = this.survivors.filter((s) => !s.taken);
     }
+    // Подобрать ядра — пролётом, место на борту не нужно
+    for (const c of this.cores) {
+      if (Math.hypot(c.x - h.x, c.y - h.y) <= CORES.pickupRadius) {
+        c.taken = true;
+        this.stats.coresTaken++;
+        this.gainXp(CORES.xp);
+        this.events.push({ type: 'core', x: c.x, y: c.y });
+      }
+    }
+    // Ядра гаснут
+    for (const c of this.cores) c.life -= dt;
+    this.cores = this.cores.filter((c) => !c.taken && c.life > 0);
     // Сдать у грузовика
     if (h.carrying > 0 && Math.hypot(this.map.truck.x - h.x, this.map.truck.y - h.y) <= HELI.dropRadius) {
       this.people += h.carrying;
@@ -756,6 +772,13 @@ export class World {
     this.gainXp(SYSTEM.xp[e.type] || 0);
     this.stats.killsBy[from]++;
     this.events.push({ type: 'kill', x: e.x, y: e.y, enemy: e.type });
+    if (this.coreRand() < (CORES.chance[e.type] || 0)) {
+      const a = this.coreRand() * Math.PI * 2;
+      const r = this.coreRand() * CORES.scatter;
+      this.cores.push({ id: this.nextId++, x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r, life: CORES.life });
+      this.stats.coresDropped++;
+      this.events.push({ type: 'coreDrop', x: e.x, y: e.y });
+    }
   }
 
   // ---------- Итог забега для localStorage / Node ----------
@@ -792,6 +815,8 @@ export class World {
       calledEarly: s.calledEarly,
       earlyBonus: s.earlyBonus,
       abilityUsed: s.abilityUsed,
+      coresDropped: s.coresDropped,
+      coresTaken: s.coresTaken,
       heroLevel: this.heroLevel,
       xp: this.xp,
       perks: this.perks,

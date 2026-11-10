@@ -73,6 +73,8 @@ export const T = {
     lost: ['medic', 'Не успели… человек пропал.'],
     drop_first: ['medic', 'Приняла людей. Каждый — ещё одни руки для стройки.'],
     leak: ['institute', 'Прорыв к убежищу!'],
+    core_drop: ['institute', 'С гостя упало ядро. Подберите с воздуха — система откликнется.'],
+    core_taken: ['medic', 'Ядро тёплое… Свет отзывается.'],
     perk_sergeant: ['sergeant', 'Чувствую — стволы слушаются лучше.'],
     perk_medic: ['medic', 'Свет сильнее… я справлюсь.'],
     artillery: ['institute', 'Квадрат принят. Залп через две секунды.'],
@@ -176,6 +178,7 @@ export const T = {
       ...(r.wiresBuilt ? [`Проволоки порвано: ${r.wiresBroken}${r.wiresBrokenBy?.berserker ? ` (берсерки ${r.wiresBrokenBy.berserker})` : ''}`] : []),
       ...(r.minesBuilt ? [`Мины: взорвано ${Object.values(trig).reduce((a, b) => a + b, 0)} из ${r.minesBuilt}, под гоблинами ${trig.goblin || 0}, убито минами ${r.killsBy.mine || 0}`] : []),
       `Убито: ${kills.join(', ')}   Прорвалось: ${r.leaked}`,
+      ...(r.heroLevel ? [`Система: уровень ${r.heroLevel}   Ядер подобрано: ${r.coresTaken || 0} из ${r.coresDropped || 0}`] : []),
     ];
   },
 };

@@ -79,6 +79,16 @@ export class Particles {
     }
   }
 
+  // ядро подобрано: фиолетовые искры вверх, к вертолёту
+  core(x, y) {
+    for (let i = 0; i < 10; i++) {
+      const s = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
+      const v = 60 + Math.random() * 110;
+      this.add({ x, y: y - 8, vx: Math.cos(s) * v, vy: Math.sin(s) * v, life: 0.5, size: 2.2, color: F.core, drag: 2.5 });
+    }
+    this.add({ kind: 'ring', x, y: y - 8, life: 0.35, size: 6, grow: 50, color: F.core, alpha: 0.8 });
+  }
+
   // враг вышел из врат: фиолетовые искры закручиваются
   portal(x, y, r) {
     for (let i = 0; i < 6; i++) {

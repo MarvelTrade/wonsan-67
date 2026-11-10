@@ -128,6 +128,17 @@ export class Bot {
       }
     }
     if (best) return { x: best.x, y: best.y };
+    // Людей нет — ближнее ядро, если успеем
+    let core = null;
+    let coreD = BOT.coreDetour;
+    for (const c of w.cores) {
+      const d = Math.hypot(c.x - h.x, c.y - h.y);
+      if (d < coreD && d / HELI.maxSpeed < c.life - 0.3) {
+        coreD = d;
+        core = c;
+      }
+    }
+    if (core) return { x: core.x, y: core.y };
     if (h.carrying > 0) return truck;
     // Людей нет — висеть над самым продвинувшимся врагом
     let lead = null;

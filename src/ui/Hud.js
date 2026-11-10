@@ -58,13 +58,15 @@ export class Hud {
     this.tWave.setPosition(H.margin + H.pad + pipsW + 8, y2);
 
     // уровень героя («система») и полоска опыта до следующего
-    const lx = H.margin + w2 + H.gap;
+    // своей строкой под волной: справа сверху висит радио
+    const lx = H.margin;
+    const y3 = y2 + h2 + H.gap;
     this.tLevel.setText(T.level(world.heroLevel));
     const lw = H.pad * 2 + Math.max(this.tLevel.width, 56);
-    this.box(lx, y2 - h2 / 2, lw, h2, world.pendingLevels > 0 ? H.levelUp : null);
-    this.tLevel.setPosition(lx + H.pad, y2 - 4);
-    g.fillStyle(H.empty).fillRect(lx + H.pad, y2 + h2 / 2 - 9, lw - H.pad * 2, 4);
-    g.fillStyle(H.xp).fillRect(lx + H.pad, y2 + h2 / 2 - 9, (lw - H.pad * 2) * world.xpProgress, 4);
+    this.box(lx, y3 - h2 / 2, lw, h2, world.pendingLevels > 0 ? H.levelUp : null);
+    this.tLevel.setPosition(lx + H.pad, y3 - 4);
+    g.fillStyle(H.empty).fillRect(lx + H.pad, y3 + h2 / 2 - 9, lw - H.pad * 2, 4);
+    g.fillStyle(H.xp).fillRect(lx + H.pad, y3 + h2 / 2 - 9, (lw - H.pad * 2) * world.xpProgress, 4);
   }
 
   // плашка: фон, значок, текст; extra — дорисовать поверх (полоска убежища)

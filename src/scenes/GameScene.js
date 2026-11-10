@@ -1,7 +1,7 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
@@ -9,8 +9,7 @@ import { saveRun } from '../telemetry.js';
 import { markWin, wasSeen, markSeen } from '../progress.js';
 import { Dossier } from '../ui/Dossier.js';
 import { drawTerrain } from '../art/terrain.js';
-import { drawShelter, drawTruck, drawGun, drawGate, drawSandbags } from '../art/props.js';
-import { drawGoblin, drawSpearman, drawBerserker, drawSurvivor, drawSoldier, drawHeli } from '../art/units.js';
+import { drawGate, drawSandbags } from '../art/props.js';
 import { Radio } from '../ui/Radio.js';
 import { copyStats, statsText } from '../ui/copyStats.js';
 import { drawStars } from '../ui/stars.js';
@@ -40,11 +39,19 @@ export class GameScene extends Phaser.Scene {
     this.menu = null; // открытое меню постройки: { slot, buttons: [{ kind, rect }] }
     this.saved = false;
 
-    this.bg = this.add.graphics();
+    this.spriteMeta = this.cache.json.get('spritesMeta') || {};
+    this.pool = [];
+    this.bg = this.add.graphics().setDepth(0);
     this.drawBackground();
-    this.g = this.add.graphics();
-    this.fxG = this.add.graphics();
-    this.menuG = this.add.graphics();
+    this.g = this.add.graphics().setDepth(1);          // на земле: кольца, проволока, мины, окопы
+    this.topG = this.add.graphics().setDepth(3);       // над фигурами: стволы, полоски HP, пули
+    this.fxG = this.add.graphics().setDepth(5);
+    this.menuG = this.add.graphics().setDepth(10);
+    // вертолёт летит над всем: тень — на земле, корпус и винт — выше фигур
+    this.heliShadow = this.add.image(0, 0, 'spr_heli').setOrigin(this.spriteMeta.heli?.ox ?? 0.6, 0.5)
+      .setScale(SPRITES.keyScale.heli).setTint(0x000000).setTintMode(Phaser.TintModes.FILL).setAlpha(SPRITES.heliShadow).setDepth(1.5);
+    this.heliImg = this.add.image(0, 0, 'spr_heli').setOrigin(this.spriteMeta.heli?.ox ?? 0.6, 0.5).setScale(SPRITES.keyScale.heli).setDepth(6);
+    this.rotorG = this.add.graphics().setDepth(6.1);
 
     const style = { fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.fontSize}px`, color: COLORS.text };
     const pad = DRAW.hudPad;
@@ -374,21 +381,23 @@ export class GameScene extends Phaser.Scene {
     const g = this.bg;
     const MAP = this.map;
     // Земля, берег, дорога, дома, рощи — src/art/terrain.js
-    drawTerrain(g, this.world);
+    const placed = drawTerrain(g, this.world);
+    for (const p of placed.houses) this.prop(p.kind, p.x, p.y, p.flip);
+    for (const p of placed.trees) this.prop(p.kind, p.x, p.y, false);
     // Места под постройку — бетонные площадки
     for (const s of this.world.slots) {
       g.fillStyle(0x000000, 0.25).fillCircle(s.x + 3, s.y + 4, DRAW.slotRadius + 4);
       g.fillStyle(PROPS.concreteDark).fillCircle(s.x, s.y, DRAW.slotRadius + 4);
       g.fillStyle(PROPS.concrete).fillCircle(s.x - 1, s.y - 1, DRAW.slotRadius);
     }
-    drawShelter(g, MAP.shelter);
+    this.prop('bunker', MAP.shelter.x, MAP.shelter.y + MAP.shelter.h * 0.3, false);
     // Зона приёма людей у грузовика — пунктирный круг
     const dr = HELI.dropRadius;
     g.lineStyle(2, COLORS.truck, 0.55);
     for (let i = 0; i < 24; i += 2) {
       g.beginPath().arc(MAP.truck.x, MAP.truck.y, dr, (i / 24) * Math.PI * 2, ((i + 1) / 24) * Math.PI * 2, false).strokePath();
     }
-    drawTruck(g, MAP.truck.x, MAP.truck.y);
+    this.prop('truck', MAP.truck.x, MAP.truck.y + 8, false);
   }
 
   // ---------- Кадр ----------
@@ -439,11 +448,17 @@ export class GameScene extends Phaser.Scene {
       g.lineBetween(st.x - 12, st.y, st.x + 12, st.y).lineBetween(st.x, st.y - 12, st.x, st.y + 12);
     }
 
+    // ---------- спрайты в ракурсе 3/4: пул картинок, глубина по y (кто ниже — тот ближе) ----------
+    this.poolI = 0;
+    const top = this.topG;
+    top.clear();
+    const now = this.time.now / 1000;
+    const bob = (id) => Math.abs(Math.sin(now * SPRITES.bobSpeed + id)) * SPRITES.bob;
+
     // Бойцы подкрепления
     for (const s of w.soldiers) {
-      const r = DRAW.soldierRadius;
-      drawSoldier(g, s.x, s.y, r, s.aim);
-      this.hpBar(g, s.x, s.y - r - 7, s.hp / s.maxHp, DRAW.hpBarW * 0.6);
+      this.spr('soldier', s.x, s.y - bob(s.id), Math.cos(s.aim) < 0, SPRITES.unitScale);
+      this.hpBar(top, s.x, s.y - DRAW.hpOffset.soldier, s.hp / s.maxHp, DRAW.hpBarW * 0.6);
     }
 
     // Места под постройку
@@ -455,11 +470,9 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(1, COLORS.slot, 0.25).lineBetween(s.x, s.y, s.roadX, s.roadY);
     }
 
-    // Пушки
+    // Пушки: окоп и кольца — на земле, гнездо — спрайтом, ствол — поверх (поворачивается на цель)
     for (const t of w.towers) {
-      const half = DRAW.towerSize / 2;
       if (!t.alive) {
-        // воронка и раскиданные мешки
         g.fillStyle(0x1a1610, 0.6).fillCircle(t.x, t.y, DRAW.towerSize * 0.55);
         drawSandbags(g, t.x, t.y, DRAW.towerSize * 0.95, 5, 0.6);
         continue;
@@ -468,46 +481,60 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(DRAW.trenchWidth, COLORS.trench).strokeCircle(t.x, t.y, DRAW.trenchRadius);
         g.lineStyle(2, COLORS.trenchEdge).strokeCircle(t.x, t.y, DRAW.trenchRadius + DRAW.trenchWidth / 2);
       }
-      drawGun(g, t, DRAW.towerSize * 1.5, DRAW.barrel);
+      this.spr('nest', t.x, t.y, false);
+      const gy = t.y - DRAW.nestGunH;
+      top.lineStyle(5, 0x1c1c18).lineBetween(t.x, gy, t.x + Math.cos(t.aim) * DRAW.barrel, gy + Math.sin(t.aim) * DRAW.barrel * 0.6);
+      top.fillStyle(0x2a2a26).fillCircle(t.x, gy, 5);
       g.lineStyle(1, COLORS.tower, 0.12).strokeCircle(t.x, t.y, BUILD.tower.range);
-      // Пушку можно окопать — тонкое кольцо (жёлтое, если хватает людей)
       if (!t.trench && w.level.builds.includes('trench')) {
         const can = w.people >= BUILD.trench.cost;
         g.lineStyle(2, can ? COLORS.slotAffordable : COLORS.slot, can ? 0.8 : 0.25).strokeCircle(t.x, t.y, DRAW.trenchRadius);
       }
-      this.hpBar(g, t.x, t.y - half - 8, t.hp / t.maxHp);
+      this.hpBar(top, t.x, t.y - DRAW.hpOffset.nest, t.hp / t.maxHp);
     }
 
     // Люди — машут, кольцо тает, пока ждут
     for (const s of w.survivors) {
       const k = s.life / w.surv.life;
       g.lineStyle(2, COLORS.survivorRing, 0.25 + 0.5 * Math.min(1, k)).strokeCircle(s.x, s.y, DRAW.survivorRing);
-      drawSurvivor(g, s.x, s.y, s.id, this.time.now / 1000);
+      this.spr(`civ${s.id % 3}`, s.x, s.y - bob(s.id) * 0.6, s.id % 2 === 0, SPRITES.unitScale);
     }
 
-    // Враги — смотрят по ходу дороги (берсерк — на цель)
+    // Враги — смотрят по ходу дороги (берсерк — на цель), подпрыгивают на ходу, белеют от попадания
     for (const e of w.enemies) {
       const cfg = ENEMIES[e.type];
-      const hurt = e.hurtT > 0;
       const ahead = e.goal && e.state === 'charge' ? e.goal : w.path.at(e.d + 8);
-      const a = Math.atan2(ahead.y - e.y, ahead.x - e.x);
-      if (e.type === 'berserker') drawBerserker(g, e.x, e.y, cfg.radius, a, hurt, !!e.stabAt);
-      else if (e.type === 'spearman') drawSpearman(g, e.x, e.y, cfg.radius, a, hurt, e.stabAt, cfg.reach);
-      else drawGoblin(g, e.x, e.y, cfg.radius, a, hurt);
+      const flip = ahead.x < e.x;
+      const img = this.spr(e.type, e.x, e.y - (e.blocked ? 0 : bob(e.id)), flip, SPRITES.unitScale);
+      if (e.hurtT > 0) img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+      if (e.type === 'berserker' && e.stabAt) img.setRotation(flip ? -0.3 : 0.3);
+      if (e.type === 'spearman' && e.stabAt) {
+        top.lineStyle(3, 0xc8ccd0).lineBetween(e.x, e.y - 14, e.stabAt.x, e.stabAt.y - 6);
+      }
       if (e.slowed || e.blocked) g.lineStyle(1, COLORS.wire, 0.8).strokeCircle(e.x, e.y, cfg.radius + 4);
-      if (e.hp < e.maxHp) this.hpBar(g, e.x, e.y - cfg.radius - 8, e.hp / e.maxHp, DRAW.hpBarW * 0.6);
+      if (e.hp < e.maxHp) this.hpBar(top, e.x, e.y - DRAW.hpOffset[e.type], e.hp / e.maxHp, DRAW.hpBarW * 0.6);
     }
+    this.hidePool();
 
-    // Снаряды
+    // Снаряды — над фигурами
     for (const s of w.shots) {
-      g.fillStyle(s.from === 'heli' ? COLORS.bullet : COLORS.towerBullet).fillCircle(s.x, s.y, DRAW.bulletRadius);
+      top.fillStyle(s.from === 'heli' ? COLORS.bullet : COLORS.towerBullet).fillCircle(s.x, s.y - 8, DRAW.bulletRadius);
     }
 
-    // Вертолёт: тень на земле, корпус, винты; люди на борту — точками у двери
+    // Вертолёт: тень на земле, корпус — спрайт сверху (вращается), винт — диском и лопастями
     const h = w.heli;
-    drawHeli(g, h.x + DRAW.shadowOffset, h.y + DRAW.shadowOffset, h.rot, h.rotor, DRAW.heliLength, DRAW.heliWidth, true);
-    drawHeli(g, h.x, h.y, h.rot, h.rotor, DRAW.heliLength, DRAW.heliWidth, false);
-    for (let i = 0; i < h.carrying; i++) g.fillStyle(COLORS.survivor).fillCircle(h.x - 8 + i * 8, h.y + DRAW.heliWidth + 10, 3);
+    this.heliShadow.setPosition(h.x + DRAW.shadowOffset, h.y + DRAW.shadowOffset).setRotation(h.rot);
+    this.heliImg.setPosition(h.x, h.y).setRotation(h.rot);
+    const r = this.rotorG;
+    r.clear();
+    const R = DRAW.rotorRadius;
+    r.fillStyle(0xd8e0d0, 0.1).fillCircle(h.x, h.y, R);
+    r.lineStyle(3, 0x1c1c18, 0.55);
+    for (let i = 0; i < 5; i++) {
+      const a = h.rotor + (i * Math.PI * 2) / 5;
+      r.lineBetween(h.x, h.y, h.x + Math.cos(a) * R, h.y + Math.sin(a) * R);
+    }
+    for (let i = 0; i < h.carrying; i++) r.fillStyle(COLORS.survivor).fillCircle(h.x - 8 + i * 8, h.y + 26, 3);
 
     // Вспышки
     const f = this.fxG;
@@ -541,6 +568,30 @@ export class GameScene extends Phaser.Scene {
       });
       m.lineStyle(2, COLORS.slotAffordable).strokeCircle(this.menu.slot.x, this.menu.slot.y, DRAW.slotRadius + 4);
     }
+  }
+
+  // Неподвижный спрайт (дом, дерево, бункер, грузовик): точка опоры — по sprites.json, глубина — по y
+  prop(key, x, y, flip) {
+    const meta = this.spriteMeta[key] || { ox: 0.5, oy: 0.85 };
+    return this.add.image(x, y, `spr_${key}`).setOrigin(flip ? 1 - meta.ox : meta.ox, meta.oy)
+      .setFlipX(flip).setScale(SPRITES.keyScale[key] ?? SPRITES.scale).setDepth(2 + y / 1000);
+  }
+
+  // Движущийся спрайт из пула: каждый кадр берём следующую картинку, лишние прячем (hidePool)
+  spr(key, x, y, flip, scale = SPRITES.keyScale[key] ?? SPRITES.scale) {
+    let img = this.pool[this.poolI];
+    if (!img) {
+      img = this.add.image(0, 0, `spr_${key}`);
+      this.pool.push(img);
+    }
+    this.poolI++;
+    const meta = this.spriteMeta[key] || { ox: 0.5, oy: 0.9 };
+    return img.setTexture(`spr_${key}`).setOrigin(flip ? 1 - meta.ox : meta.ox, meta.oy).setFlipX(flip)
+      .setPosition(x, y).setScale(scale).setRotation(0).clearTint().setTintMode(Phaser.TintModes.MULTIPLY).setAlpha(1).setVisible(true).setDepth(2 + y / 1000);
+  }
+
+  hidePool() {
+    for (let i = this.poolI; i < this.pool.length; i++) this.pool[i].setVisible(false);
   }
 
   hpBar(g, x, y, k, width = DRAW.hpBarW) {

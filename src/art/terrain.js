@@ -1,5 +1,6 @@
 // Статичный фон уровня, рисуется один раз: трава с пятнами, берег с пеной, грунтовая дорога с колеями,
-// дома у мест, где ждут люди, рощи вдали от дороги. Всё — примитивы, раскладка детерминирована (seed = уровень).
+// а дома (у мест, где ждут люди) и деревья (вдали от дороги) только расставляет — их рисуют спрайты.
+// Возвращает { houses: [{x, y, kind, flip}], trees: [{x, y, kind}] }. Раскладка детерминирована (seed = уровень).
 import { VIEW, TERRAIN as P } from '../config.js';
 import { rng } from '../sim/path.js';
 
@@ -75,24 +76,23 @@ export function drawTerrain(g, world) {
     (Math.abs(map.shelter.x - x) > map.shelter.w / 2 + 20 + pad || Math.abs(map.shelter.y - y) > map.shelter.h / 2 + 20 + pad);
 
   // дома — у каждой точки, где появляются люди (оттуда их и забирают)
+  const houses = [];
   for (const [sx, sy] of map.survivorSpots) {
-    const w = R(30, 44);
-    const h = R(24, 34);
-    const x = sx + (rand() < 0.5 ? -1 : 1) * R(26, 34) - w / 2;
-    const y = sy - R(22, 30) - h / 2;
-    drawHouse(g, x, y, w, h, rand() < 0.5);
+    houses.push({ x: sx + (rand() < 0.5 ? -1 : 1) * R(24, 30), y: sy - R(10, 16), kind: rand() < 0.5 ? 'houseA' : 'houseB', flip: rand() < 0.5 });
   }
 
   // рощи
+  const trees = [];
   let placed = 0;
   for (let tries = 0; tries < 900 && placed < P.trees; tries++) {
     const cx = R(10, VIEW.width - 10);
-    const cy = R(10, seaTop - 24);
+    const cy = R(30, seaTop - 10);
     if (!clear(cx, cy, 14)) continue;
-    const n = 1 + Math.floor(rand() * 4);
-    for (let k = 0; k < n; k++) drawTree(g, cx + R(-18, 18), cy + R(-14, 14), R(9, 15));
+    const n = 1 + Math.floor(rand() * 3);
+    for (let k = 0; k < n; k++) trees.push({ x: cx + R(-18, 18), y: cy + R(-12, 12), kind: rand() < 0.5 ? 'treeA' : 'treeB' });
     placed++;
   }
+  return { houses, trees };
 }
 
 export function drawHouse(g, x, y, w, h, tiled) {

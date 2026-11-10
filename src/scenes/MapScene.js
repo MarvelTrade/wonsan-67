@@ -1,6 +1,6 @@
 // Карта серий: побережье, серии слева направо. Пройденная открывает следующую.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, LEVELS, SPEAKERS, DRAW, WORLD_MAP as M } from '../config.js';
+import { VIEW, COLORS, LEVELS, SPEAKERS, DRAW, SPRITES, WORLD_MAP as M } from '../config.js';
 import { T } from '../texts.js';
 import { loadProgress, unlockedCount } from '../progress.js';
 import { copyStats, statsText } from '../ui/copyStats.js';
@@ -18,6 +18,9 @@ export class MapScene extends Phaser.Scene {
   preload() {
     for (const [who, sp] of Object.entries(SPEAKERS)) if (sp.art) this.load.image(`portrait_${who}`, sp.art);
     this.load.image('mapArt', M.art);
+    // спрайты из Blender и точки опоры (ноги) для каждого — sprites.json
+    for (const k of SPRITES.keys) this.load.image(`spr_${k}`, `sprites/${k}.png`);
+    this.load.json('spritesMeta', 'sprites/sprites.json');
   }
 
   create() {

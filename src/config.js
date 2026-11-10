@@ -547,6 +547,20 @@ export const PROPS = {
   gateDeep: 0x1c0f2c,
 };
 
+// Спрайты из Blender (tools/blender/make_sprites.py → public/sprites, тун-шейдинг, ракурс 3/4).
+// Отрисованы в двойном разрешении: scale — во сколько раз показать относительно файла.
+export const SPRITES = {
+  keys: ['goblin', 'spearman', 'berserker', 'civ0', 'civ1', 'civ2', 'soldier', 'heli',
+    'houseA', 'houseB', 'treeA', 'treeB', 'bunker', 'truck', 'nest'],
+  scale: 0.5,
+  unitScale: 0.8,       // фигуры крупнее «логического» размера — читаются на телефоне
+  // свой масштаб у неподвижных: бункер — по размеру убежища, дома и деревья — заметнее
+  keyScale: { bunker: 0.95, truck: 0.62, houseA: 0.72, houseB: 0.72, treeA: 0.8, treeB: 0.8, nest: 0.62, heli: 0.62 },
+  bob: 1.6,             // px — подпрыгивание при ходьбе
+  bobSpeed: 11,
+  heliShadow: 0.3,
+};
+
 // Юниты (src/art/units.js). Только картинка.
 export const UNITS = {
   outline: 0x141810,
@@ -625,12 +639,14 @@ export const DRAW = {
   trenchWidth: 8,
   mineRadius: 7,
   soldierRadius: 8,
+  nestGunH: 12,         // px — высота станка пулемёта над землёй (ствол рисуется оттуда)
+  hpOffset: { goblin: 40, spearman: 50, berserker: 58, soldier: 36, nest: 34 }, // полоска HP над спрайтом
   abilityR: 40,         // кнопки умений
   abilityGap: 16,
   abilityBottom: 76,    // от нижнего края до низа кнопок умений (над морем и подсказкой)
   heliLength: 78,       // транспортный вертолёт: длиннее и шире прежнего силуэта
   heliWidth: 24,
-  rotorRadius: 34,
+  rotorRadius: 46,
   shadowOffset: 14,
   survivorRadius: 6,
   survivorRing: 16,

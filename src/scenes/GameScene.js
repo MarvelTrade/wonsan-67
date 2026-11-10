@@ -638,6 +638,11 @@ export class GameScene extends Phaser.Scene {
       const tier = e.boss ? BOSS : e.elite ? ELITE : null;
       const sc = (SPRITES.keyScale[e.type] ?? SPRITES.scale) * (tier?.scale ?? 1);
       if (tier) g.fillStyle(tier.aura, tier.auraAlpha * (0.75 + 0.25 * Math.sin(w.t * 6 + e.id))).fillEllipse(e.x, e.y, cfg.radius * tier.auraR * 2.2, cfg.radius * tier.auraR * 1.1);
+      // босс: ещё и расходящееся кольцо у ног
+      if (e.boss) {
+        const k = (w.t * 0.8 + e.id) % 1;
+        g.lineStyle(3, BOSS.aura, 0.9 * (1 - k)).strokeEllipse(e.x, e.y, cfg.radius * BOSS.auraR * (2.2 + k * 1.4), cfg.radius * BOSS.auraR * (1.1 + k * 0.7));
+      }
       const img = this.spr(e.type, e.x, e.y - (e.blocked ? 0 : bob(e.id)), flip, sc);
       if (e.hurtT > 0) img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
       if (e.type === 'berserker' && e.stabAt) img.setRotation(flip ? -0.3 : 0.3);

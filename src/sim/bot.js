@@ -2,7 +2,7 @@
 // План: '2t1w' — 2 пушки и 1 проволока; '3t1w2e' — ещё 2 окопа у первых двух пушек;
 // '3t1w3e4m' — и 4 раза положить мину (место — первое свободное из order.mine в момент постройки).
 // Места — по порядку из bot.order уровня; именованные планы ('trap') — из bot.plans.
-import { BOT, HELI, ABILITIES, ENEMIES } from '../config.js';
+import { BOT, HELI, ABILITIES, ENEMIES, BUILD } from '../config.js';
 
 export function parsePlan(spec, bot) {
   if (bot.plans[spec]) return bot.plans[spec].map((b) => ({ ...b }));
@@ -98,7 +98,12 @@ export class Bot {
     const freeMineSlot = () => w.level.bot.order.mine?.find((id) => !w.slots.find((s) => s.id === id).building);
     const i = this.queue.findIndex((it) => !(it.kind === 'mine' && !it.slot && !freeMineSlot()));
     const item = this.queue[i];
-    if (item) {
+    // Пушка, за которой в плане окоп, при берсерке на поле — только когда хватает и на окоп сразу
+    // (иначе свежую пушку без окопа рубят за 6–8 с, пока копятся люди на окоп)
+    const trenchNext = item?.kind === 'tower' && this.queue.some((it) => it.kind === 'trench' && it.slot === item.slot);
+    const berserkerOut = w.enemies.some((e) => e.type === 'berserker');
+    const saving = trenchNext && berserkerOut && w.people < BUILD.tower.cost + BUILD.trench.cost;
+    if (item && !saving) {
       const slot = item.kind === 'mine' && !item.slot ? freeMineSlot() : item.slot;
       if (w.canBuild(slot, item.kind)) {
         w.build(slot, item.kind);

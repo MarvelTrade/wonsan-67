@@ -58,10 +58,11 @@ export const COLORS = {
   abilityReady: 0xd9b3ff,
   abilityCd: 0x4a4a52,
   starEmpty: 0x3a3f36,
+  starEdge: 0xc8c0a0,   // контур пустой звезды
   paper: 0xe9dfc4,      // досье
   paperEdge: 0x9c8c66,
-  stamp: 0xa8322a,
-  stampOk: 0x3f6a2a,
+  stamp: 0xd0262a,      // штамп «провалено» — ярко-красный
+  stampOk: 0x1f9a3a,    // штамп «выполнено» — ярко-зелёный
   ink: '#1e1c16',
   inkRed: '#9a2a22',
 };
@@ -486,7 +487,10 @@ export const PROGRESS_KEY = 'wonsan67.progress';
 
 // Экран карты: серии вдоль побережья слева направо (только картинка)
 export const WORLD_MAP = {
-  art: 'art/coast.jpg', // фон — верхняя панель первой страницы манхвы (побережье на рассвете, название и год)
+  art: 'art/coast.jpg', // фон — верхняя панель первой страницы манхвы, обрезана ниже нарисованного названия
+  titleTop: 40,         // название игры: крупно по-корейски, под ним RU · EN
+  titleKoSize: 104,
+  titleSubSize: 30,
   artNodeY: [575, 535, 590], // с фоном серии стоят внизу, вдоль береговой дороги
   artSubtitleY: 345,
   artShade: 0.65,       // затемнение нижней полосы под подписями
@@ -696,10 +700,12 @@ export const DRAW = {
   fontSize: 26,         // 20 → 26: на телефоне лёжа выходило ~10 px
   resultTitle: 44,
   resultW: 1060,
-  resultH: 560,
+  resultH: 540,
   resultStar: 26,
   resultSmall: 20,
-  mapStar: 14,
+  // штамп отчёта: корейская надпись (шрифт с хангылем есть на Windows, Android, iOS), снизу RU · EN
+  stamp: { w: 250, h: 96, koSize: 40, subSize: 13, koFont: '"Malgun Gothic", "Noto Sans KR", "Apple SD Gothic Neo", "Nanum Gothic", sans-serif' },
+  mapStar: 18,
   resultBody: 24,       // машинопись в отчёте: на телефоне лёжа ~12 px, поэтому жирная
   resultButton: 30,
   hudPad: 14,

@@ -55,11 +55,20 @@ export class MapScene extends Phaser.Scene {
       this.add.text(x, y, s, { fontFamily: 'Arial, sans-serif', fontSize: `${size}px`, color, align: 'center' }).setOrigin(0.5);
 
     // Название и год на арте уже есть
-    if (art) text(VIEW.width / 2, M.artSubtitleY, T.mapSubtitleArt, M.labelFont).setShadow(2, 2, '#000', 4);
-    else {
-      text(VIEW.width / 2, 90, T.title, M.titleSize);
-      text(VIEW.width / 2, 150, T.mapSubtitle, M.labelFont, COLORS.textDim);
+    // Название: крупно по-корейски, под ним — по-русски и по-английски, ниже — год и подсказка
+    const top = art ? M.titleTop : 70;
+    if (art) {
+      g.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.55, 0.55, 0, 0);
+      g.fillRect(0, 0, VIEW.width, top + 210);
     }
+    this.add.text(VIEW.width / 2, top, T.titleKo, {
+      fontFamily: DRAW.stamp.koFont, fontSize: `${M.titleKoSize}px`, fontStyle: 'bold', color: '#f4f0e4',
+      stroke: '#1a1430', strokeThickness: 10,
+    }).setOrigin(0.5, 0).setShadow(4, 6, '#000', 8, true, true);
+    text(VIEW.width / 2, top + M.titleKoSize + 30, T.titleSub, M.titleSubSize, '#f4f0e4')
+      .setStroke('#1a1430', 6).setShadow(2, 2, '#000', 4);
+    text(VIEW.width / 2, top + M.titleKoSize + 30 + M.titleSubSize + 18, T.mapSubtitle, M.labelFont * 0.85, '#e6dcc8')
+      .setShadow(2, 2, '#000', 4);
 
     // Позиции серий: равномерно слева направо
     const n = LEVELS.length;
@@ -90,9 +99,19 @@ export class MapScene extends Phaser.Scene {
       g.fillStyle(fill).fillCircle(x, y, M.nodeRadius);
       g.lineStyle(3, 0x101410, 0.6).strokeCircle(x, y, M.nodeRadius);
       text(x, y, unlocked ? String(level.id) : T.locked, M.nodeFont, '#101410');
-      if (won) drawStars(g, x, y - M.nodeRadius - 22, DRAW.mapStar, progress.stars[level.id] || 1);
-      text(x, y + M.nodeRadius + 26, level.title, M.labelFont, unlocked ? COLORS.text : COLORS.textDim).setShadow(2, 2, '#000', 4);
-      text(x, y + M.nodeRadius + 52, won ? T.mapWon : unlocked ? T.mapOpen : T.mapLocked, M.labelFont * 0.8, COLORS.textDim).setShadow(2, 2, '#000', 4);
+      // звёзды — на тёмной «таблетке» над кружком, пустые видны контуром
+      if (won) {
+        const sy = y - M.nodeRadius - DRAW.mapStar - 10;
+        const gap = DRAW.mapStar * 2.4;
+        g.fillStyle(0x101410, 0.75).fillRoundedRect(x - gap - DRAW.mapStar - 8, sy - DRAW.mapStar - 6, gap * 2 + DRAW.mapStar * 2 + 16, DRAW.mapStar * 2 + 12, DRAW.mapStar);
+        drawStars(g, x, sy, DRAW.mapStar, progress.stars[level.id] || 1, gap);
+      }
+      // подпись: название серии и состояние — на плашке, чтобы читались поверх арта
+      const [series, name] = level.title.split(' · ');
+      const t1 = text(x, y + M.nodeRadius + 26, name || level.title, M.labelFont, unlocked ? COLORS.text : COLORS.textDim);
+      const t2 = text(x, y + M.nodeRadius + 54, `${series.toLowerCase()} · ${won ? T.mapWon : unlocked ? T.mapOpen : T.mapLocked}`, M.labelFont * 0.72, COLORS.textDim);
+      const pw = Math.max(t1.width, t2.width) + 28;
+      g.fillStyle(0x101410, 0.7).fillRoundedRect(x - pw / 2, y + M.nodeRadius + 8, pw, 64, 10);
 
       if (!unlocked) continue;
       const hit = this.add.zone(x, y, M.nodeRadius * 2.4, M.nodeRadius * 2.4).setInteractive({ useHandCursor: true });

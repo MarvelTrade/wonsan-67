@@ -86,7 +86,11 @@ export class GameScene extends Phaser.Scene {
       this.input.keyboard.on('keydown-ESC', () => this.setPaused(!this.paused));
       this.input.keyboard.on('keydown-P', () => this.setPaused(!this.paused));
     }
-    this.add.text(VIEW.width / 2, pad, this.world.level.title, { ...style, color: COLORS.textDim }).setOrigin(0.5, 0).setShadow(2, 2, '#000', 4);
+    // заголовок серии — над деревьями, на плашке
+    const lt = this.add.text(VIEW.width / 2, pad + 4, this.world.level.title, { ...style, fontSize: `${DRAW.fontSize * 0.8}px`, color: COLORS.text })
+      .setOrigin(0.5, 0).setDepth(15);
+    this.add.graphics().setDepth(14).fillStyle(COLORS.panel, 0.6)
+      .fillRoundedRect(lt.x - lt.width / 2 - 12, lt.y - 4, lt.width + 24, lt.height + 8, 8);
     this.hudBot = this.add.text(VIEW.width - pad, VIEW.height - pad, BOT_PLAN ? T.bot(BOT_PLAN, SPEED) : '', {
       ...style, color: COLORS.textDim, fontSize: `${DRAW.fontSize * 0.7}px`,
     }).setOrigin(1, 1);
@@ -112,8 +116,8 @@ export class GameScene extends Phaser.Scene {
       const zone = this.add.zone(x, y, r * 2, r * 2).setInteractive({ useHandCursor: true }).setDepth(16);
       if (!BOT_PLAN) zone.on('pointerdown', () => this.toggleAim(id));
       const label = this.add.text(x, y + r + 4, `${i + 1} · ${T.abilityShort[id]}`, {
-        ...style, fontSize: `${DRAW.fontSize * 0.6}px`,
-      }).setOrigin(0.5, 0).setDepth(16).setShadow(1, 1, '#000', 3);
+        ...style, fontSize: `${DRAW.fontSize * 0.62}px`, fontStyle: 'bold', backgroundColor: 'rgba(16,20,16,0.72)', padding: { x: 6, y: 2 },
+      }).setOrigin(0.5, 0).setDepth(16);
       return { id, x, y, zone, label };
     });
     if (!BOT_PLAN) {
@@ -299,17 +303,22 @@ export class GameScene extends Phaser.Scene {
     const cx = VIEW.width / 2;
     const cy = VIEW.height / 2;
     const dim = this.add.rectangle(cx, cy, VIEW.width, VIEW.height, 0x000000, 0.55).setDepth(18).setInteractive();
+    const plate = this.add.graphics().setDepth(18.5);
+    plate.fillStyle(0x000000, 0.35).fillRoundedRect(cx - 296, cy - 136, 600, 236, 12);
+    plate.fillStyle(COLORS.paper).fillRoundedRect(cx - 300, cy - 140, 600, 236, 12);
+    plate.lineStyle(2, COLORS.paperEdge).strokeRoundedRect(cx - 300, cy - 140, 600, 236, 12);
     const title = this.add.text(cx, cy - 80, T.paused, {
-      fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultTitle}px`, color: COLORS.text,
+      fontFamily: '"Courier New", Courier, monospace', fontSize: `${DRAW.resultTitle}px`, fontStyle: 'bold', color: COLORS.ink,
     }).setOrigin(0.5).setDepth(19);
     const resume = makeButton(this, cx - 130, cy + 30, T.resume, 'primary', () => this.setPaused(false), { depth: 19 });
     const map = makeButton(this, cx + 130, cy + 30, T.toMap, 'plain', () => this.scene.start('map'), { depth: 19 });
-    this.pauseUi = [dim, title, resume, map];
+    this.pauseUi = [dim, plate, title, resume, map];
   }
 
   update(_time, delta) {
     const w = this.world;
     // Пауза или открыто досье — время стоит, но кадр и HUD рисуем (иначе на старте пусто)
+    this.radio.box.setVisible(!(this.paused || this.card));
     if (this.paused || this.card) {
       this.draw(0);
       this.drawHud();
@@ -676,6 +685,24 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // Штамп отчёта: двойная рамка, крупно по-корейски, снизу мелко RU · EN; чуть наискось, как поставлен рукой
+  makeStamp(x, y, ok) {
+    const S = DRAW.stamp;
+    const color = ok ? COLORS.stampOk : COLORS.stamp;
+    const css = `#${color.toString(16).padStart(6, '0')}`;
+    const g = this.add.graphics();
+    g.fillStyle(color, 0.08).fillRoundedRect(-S.w / 2, -S.h / 2, S.w, S.h, 6);
+    g.lineStyle(4, color, 0.95).strokeRoundedRect(-S.w / 2, -S.h / 2, S.w, S.h, 6);
+    g.lineStyle(1.5, color, 0.95).strokeRoundedRect(-S.w / 2 + 6, -S.h / 2 + 6, S.w - 12, S.h - 12, 4);
+    const ko = this.add.text(0, -10, ok ? T.report.doneKo : T.report.failedKo, {
+      fontFamily: S.koFont, fontSize: `${S.koSize}px`, fontStyle: 'bold', color: css,
+    }).setOrigin(0.5);
+    const sub = this.add.text(0, S.h / 2 - 18, `${ok ? T.report.done : T.report.failed} · ${ok ? T.report.doneEn : T.report.failedEn}`, {
+      fontFamily: 'Arial, sans-serif', fontSize: `${S.subSize}px`, fontStyle: 'bold', color: css,
+    }).setOrigin(0.5);
+    return this.add.container(x, y, [g, ko, sub]).setDepth(21).setRotation(-0.07);
+  }
+
   // Неподвижный спрайт (дом, дерево, бункер, грузовик): точка опоры — по sprites.json, глубина — по y
   prop(key, x, y, flip) {
     const meta = this.spriteMeta[key] || { ox: 0.5, oy: 0.85 };
@@ -746,18 +773,18 @@ export class GameScene extends Phaser.Scene {
       this.add.text(x, y, s, { fontFamily: '"Courier New", Courier, monospace', fontSize: `${size}px`, color, ...extra }).setDepth(21);
     type(x0 + 28, y0 + 20, `${T.report.header} · ${this.world.level.title}`, DRAW.resultSmall);
     // штамп
-    const stampColor = win ? COLORS.stampOk : COLORS.stamp;
-    panel.lineStyle(4, stampColor, 0.85).strokeRect(x0 + W - 250, y0 + 74, 210, 54);
-    type(x0 + W - 145, y0 + 101, win ? T.report.done : T.report.failed, DRAW.resultBody + 4, win ? '#3f6a2a' : '#a8322a', { fontStyle: 'bold' })
-      .setOrigin(0.5).setRotation(-0.08);
+    // штамп: всегда ярко-зелёный (выполнено) или красный (провалено); крупно по-корейски, снизу — по-русски и по-английски
+    this.makeStamp(x0 + W - 150, y0 + 112, win);
     const title = type(x0 + 28, y0 + 74, win ? T.win : T.lose, DRAW.resultTitle - 4, COLORS.ink, { fontStyle: 'bold' });
-    drawStars(panel, x0 + 28 + DRAW.resultStar + 4, y0 + 150, DRAW.resultStar, r.stars);
+    const sg = DRAW.resultStar * 2.3;
+    drawStars(panel, x0 + 28 + DRAW.resultStar + sg, y0 + 152, DRAW.resultStar, r.stars, sg);
     // последняя реплика по радио — цитатой
     const [who, quote] = T.radio[w.over];
-    type(x0 + 28 + DRAW.resultStar * 7, y0 + 140, `«${quote}» — ${T.speakers[who]}`, DRAW.resultSmall, COLORS.inkRed, {
-      fontStyle: 'italic', wordWrap: { width: W - DRAW.resultStar * 7 - 70 },
+    type(x0 + 28, y0 + 186, `«${quote}» — ${T.speakers[who]}`, DRAW.resultSmall, COLORS.inkRed, {
+      fontStyle: 'italic', wordWrap: { width: W - 56 },
     });
-    const body = type(x0 + 28, y0 + 196, T.summary(r).join('\n'), DRAW.resultBody, COLORS.ink, {
+    panel.lineStyle(1, COLORS.paperEdge, 0.5).lineBetween(x0 + 24, y0 + 222, x0 + W - 24, y0 + 222);
+    const body = type(x0 + 28, y0 + 234, T.summary(r).join('\n'), DRAW.resultBody, COLORS.ink, {
       lineSpacing: 6, fontStyle: 'bold', wordWrap: { width: W - 56 },
     });
     // кнопки

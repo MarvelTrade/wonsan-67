@@ -1,6 +1,8 @@
 // Все тексты интерфейса — здесь
 export const T = {
   title: 'ВОНСАН-67',
+  titleKo: '원산-67',             // название по-корейски (Вонсан — 원산)
+  titleSub: 'ВОНСАН-67 · WONSAN-67',
   rotate: 'Поверни телефон горизонтально',
   mapSubtitle: '1967 · восточное побережье · выбери серию',
   mapSubtitleArt: 'восточное побережье · выбери серию',
@@ -9,7 +11,11 @@ export const T = {
   mapOpen: 'открыта',
   mapLocked: 'закрыта',
   toMap: 'Карта',
-  report: { header: 'СЕКТОР 67 · ОТЧЁТ О ЗАДАНИИ', done: 'ВЫПОЛНЕНО', failed: 'ПРОВАЛЕНО' },
+  // штамп отчёта: крупно по-корейски («задание выполнено / провалено»), снизу — по-русски и по-английски
+  report: {
+    header: 'СЕКТОР 67 · ОТЧЁТ О ЗАДАНИИ', done: 'ВЫПОЛНЕНО', failed: 'ПРОВАЛЕНО',
+    doneKo: '임무 완수', failedKo: '임무 실패', doneEn: 'MISSION COMPLETE', failedEn: 'MISSION FAILED',
+  },
   pauseIcon: 'II',
   paused: 'Пауза',
   resume: 'Продолжить',
@@ -81,7 +87,8 @@ export const T = {
     newEnemy: 'НОВЫЙ ВРАГ',
     newBuild: 'НОВОЕ УКРЕПЛЕНИЕ',
     newAbility: 'НОВОЕ УМЕНИЕ',
-    stamp: 'СЕКРЕТНО',
+    stamp: 'СЕКРЕТНО · TOP SECRET',
+    stampKo: '기밀',
     ok: 'Принято',
     enemies: {
       goblin: {

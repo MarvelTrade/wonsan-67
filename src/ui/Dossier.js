@@ -1,6 +1,6 @@
 // Досье «Сектора 67»: карточка «Новый враг» / «Новое укрепление». Бумага, штамп, рисунок слева,
 // текст на машинке справа, кнопка «Принято». Пока карточка открыта, сцена держит игру на паузе.
-import { VIEW, COLORS, DOSSIER as D, ENEMIES, BUILD, ABILITIES } from '../config.js';
+import { VIEW, COLORS, DOSSIER as D, ENEMIES, BUILD, ABILITIES, DRAW } from '../config.js';
 import { T } from '../texts.js';
 import { makeButton } from './button.js';
 
@@ -29,11 +29,22 @@ export class Dossier {
     const py = y0 + D.headerH + D.pad;
     g.fillStyle(COLORS.ground).fillRect(px, py, D.picture, D.picture);
     g.lineStyle(4, COLORS.paperEdge).strokeRect(px, py, D.picture, D.picture);
-    this.drawPicture(g, entry, px + D.picture / 2, py + D.picture / 2);
+    const sprKey = entry.kind === 'enemy' ? `spr_${entry.id}` : null;
+    if (sprKey && scene.textures.exists(sprKey)) {
+      // фон рамки — кусок дороги, на нём фигура крупно
+      g.fillStyle(0xb09670).fillRect(px + 6, py + D.picture * 0.55, D.picture - 12, D.picture * 0.3);
+      const img = add(scene.add.image(px + D.picture / 2, py + D.picture * 0.82, sprKey).setOrigin(0.5, 0.92));
+      const k = Math.min((D.picture * 0.8) / img.width, (D.picture * 0.8) / img.height);
+      img.setScale(k);
+    } else this.drawPicture(g, entry, px + D.picture / 2, py + D.picture / 2);
     // штамп
-    const sx = x0 + D.width - D.pad - 110;
-    const sy = y0 + 18;
-    g.lineStyle(3, COLORS.stamp, 0.85).strokeRect(sx, sy, 110, 40);
+    // штамп «секретно»: крупно по-корейски, снизу RU · EN — как штамп отчёта
+    const sw = 150;
+    const sh = 58;
+    const sx = x0 + D.width - D.pad - sw;
+    const sy = y0 + 14;
+    g.lineStyle(3, COLORS.stamp, 0.9).strokeRect(sx, sy, sw, sh);
+    g.lineStyle(1, COLORS.stamp, 0.9).strokeRect(sx + 4, sy + 4, sw - 8, sh - 8);
 
     const type = (s, size, color = COLORS.ink, extra = {}) =>
       scene.add.text(0, 0, s, { fontFamily: '"Courier New", Courier, monospace', fontSize: `${size}px`, fontStyle: 'bold', color, ...extra });
@@ -41,7 +52,9 @@ export class Dossier {
     const heading = { enemy: T.dossier.newEnemy, build: T.dossier.newBuild, ability: T.dossier.newAbility }[entry.kind];
     add(type(heading, D.small, COLORS.inkRed, { fontStyle: 'bold' })
       .setPosition(x0 + D.pad, y0 + 22 + D.small + 6));
-    add(type(T.dossier.stamp, D.small, '#a8322a', { fontStyle: 'bold' }).setOrigin(0.5).setPosition(sx + 55, sy + 20).setRotation(-0.08));
+    const red = `#${COLORS.stamp.toString(16).padStart(6, '0')}`;
+    add(scene.add.text(sx + sw / 2, sy + 22, T.dossier.stampKo, { fontFamily: DRAW.stamp.koFont, fontSize: '26px', fontStyle: 'bold', color: red }).setOrigin(0.5));
+    add(scene.add.text(sx + sw / 2, sy + sh - 12, T.dossier.stamp, { fontFamily: 'Arial, sans-serif', fontSize: '11px', fontStyle: 'bold', color: red }).setOrigin(0.5));
 
     const tx = px + D.picture + D.pad;
     const tw = x0 + D.width - D.pad - tx;

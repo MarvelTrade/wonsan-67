@@ -9,7 +9,7 @@ export function drawStar(g, x, y, r, filled) {
     pts.push({ x: x + Math.cos(a) * rr, y: y + Math.sin(a) * rr });
   }
   g.fillStyle(filled ? COLORS.star : COLORS.starEmpty, 1).fillPoints(pts, true);
-  g.lineStyle(2, 0x101410, 0.7).strokePoints(pts, true);
+  g.lineStyle(2, filled ? 0x101410 : COLORS.starEdge, filled ? 0.7 : 0.9).strokePoints(pts, true);
 }
 
 export function drawStars(g, cx, y, r, n, gap = r * 2.3) {

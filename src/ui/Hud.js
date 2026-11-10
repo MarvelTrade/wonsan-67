@@ -20,6 +20,7 @@ export class Hud {
   update(world, dt) {
     const g = this.g;
     g.clear();
+    if (this.bumps) for (const [k, v] of this.bumps) this.bumps.set(k, Math.max(0, v - dt));
     const hp = world.shelter.hp;
     if (this.prevHp !== null && hp < this.prevHp) this.flash = H.flashTime;
     this.prevHp = hp;
@@ -118,12 +119,26 @@ export class Hud {
   // плашка: фон, значок, текст; extra — дорисовать поверх (полоска убежища)
   chip(x, y, text, value, icon, tint = null, extra = null) {
     text.setText(value);
-    const w = H.pad * 2 + H.icon + 8 + text.width;
+    // «подпрыгнуть»: прилетел жетон — цифра на миг крупнее (план фазы 2)
+    const b = this.bumps?.get(text) || 0;
+    text.setScale(1 + H.bumpScale * Math.sin(Math.min(1, b / H.bumpTime) * Math.PI));
+    const w = H.pad * 2 + H.icon + 8 + text.width / text.scaleX;
     this.box(x, y - H.chipH / 2, w, H.chipH, tint);
     icon(x + H.pad + H.icon / 2, y);
     text.setPosition(x + H.pad + H.icon + 8, y - (extra ? 3 : 0));
     if (extra) extra();
+    (this.anchors ??= new Map()).set(text, { x: x + H.pad + H.icon / 2, y });
     return x + w;
+  }
+
+  // жетон долетел до плашки (tPeople / tBoard) — она подпрыгивает
+  bump(text) {
+    (this.bumps ??= new Map()).set(text, H.bumpTime);
+  }
+
+  // куда лететь жетону: центр значка плашки
+  anchor(text) {
+    return this.anchors?.get(text) || { x: H.margin + 40, y: H.margin + H.chipH / 2 };
   }
 
   box(x, y, w, h, tint) {

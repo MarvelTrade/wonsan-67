@@ -167,6 +167,8 @@ export class GameScene extends Phaser.Scene {
     this.bossG = this.add.graphics().setDepth(14.6);
     this.hitStop = 0;
     this.manifest = new Map(); // id пушки → время «проявления» (мс)
+    this.tokens = []; // жетоны людей, летящие к плашкам HUD
+    this.tokenG = this.add.graphics().setDepth(15.5); // поверх плашек HUD
     this.cine = null;
     this.flashRect = this.add.rectangle(VIEW.width / 2, VIEW.height / 2, VIEW.width * 2, VIEW.height * 2, COLORS.gate, 0).setDepth(4.9);
 
@@ -353,6 +355,39 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  // Жетон «человек»: из точки мира (с учётом тряски и наезда камеры) дугой к плашке HUD
+  flyToken(x, y, target, delay) {
+    const cam = this.cameras.main;
+    const sx = (x - cam.worldView.x) * cam.zoom;
+    const sy = (y - cam.worldView.y) * cam.zoom;
+    this.tokens.push({ sx, sy, target, t: -delay });
+  }
+
+  updateTokens(dt) {
+    const g = this.tokenG;
+    g.clear();
+    for (const k of this.tokens) {
+      k.t += dt;
+      if (k.t < 0) continue;
+      const p = Math.min(1, k.t / JUICE.tokenTime);
+      const e = p * p * (3 - 2 * p);
+      const end = this.hud.anchor(k.target);
+      const cx = (k.sx + end.x) / 2;
+      const cy = Math.min(k.sy, end.y) - JUICE.tokenArc;
+      const x = (1 - e) * (1 - e) * k.sx + 2 * (1 - e) * e * cx + e * e * end.x;
+      const y = (1 - e) * (1 - e) * k.sy + 2 * (1 - e) * e * cy + e * e * end.y;
+      const s = 1.5 - 0.6 * e; // крупнее на взлёте, у плашки — как значок
+      g.fillStyle(COLORS.gate, 0.35 * (1 - e)).fillCircle(x, y, 14 * s);
+      g.fillStyle(0xf4f0e4).fillCircle(x, y - 6 * s, 5 * s).fillEllipse(x, y + 6 * s, 15 * s, 10 * s);
+      g.lineStyle(2, 0x14101c, 0.8).strokeCircle(x, y - 6 * s, 5 * s);
+      if (p >= 1) {
+        k.done = true;
+        this.hud.bump(k.target);
+      }
+    }
+    this.tokens = this.tokens.filter((k) => !k.done);
+  }
+
   // ---------- Досье ----------
   queueCard(kind, id) {
     const key = `${kind}:${id}`;
@@ -497,6 +532,8 @@ export class GameScene extends Phaser.Scene {
       if (e.type === 'kill' && e.boss) this.parts.explosion(e.x, e.y, 70);
       if (e.type === 'kill' && (e.elite || e.boss)) this.hitStop = Math.max(this.hitStop, e.boss ? JUICE.hitStopBoss : JUICE.hitStopElite);
       if (e.type === 'waveStart') this.gateFlash();
+      if (e.type === 'pickup' && !this.bot) this.flyToken(e.x, e.y, this.hud.tBoard, 0);
+      if (e.type === 'drop' && !this.bot) for (let i = 0; i < e.n; i++) this.flyToken(this.map.truck.x, this.map.truck.y, this.hud.tPeople, i * JUICE.tokenStagger);
       if (e.type === 'build' && e.kind === 'tower') {
         const s = this.world.slots.find((sl) => sl.id === e.slot);
         const t = s?.building?.ref;
@@ -819,6 +856,7 @@ export class GameScene extends Phaser.Scene {
     this.fx = this.fx.filter((fx) => fx.t > 0);
     this.parts.update(dt);
     this.updateDamage(dt);
+    this.updateTokens(dt);
     this.tutorial?.update(dt, w, !!(this.paused || this.card || this.menu || this.world.over));
     this.drawAmbient();
 

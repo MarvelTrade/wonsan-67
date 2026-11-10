@@ -1,7 +1,7 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM, CORES, ELITE } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN, FX, SYSTEM, CORES, ELITE, BOSS } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
@@ -381,6 +381,9 @@ export class GameScene extends Phaser.Scene {
     const r = this.radio;
     const L = this.levelId;
     if (e.type === 'waveStart') r.say(`l${L}_w${e.index + 1}`);
+    else if (e.type === 'spawn' && e.boss) r.say('boss');
+    else if (e.type === 'kill' && e.boss) r.say('boss_down');
+    else if (e.type === 'leak' && e.boss) r.say('boss_leak');
     else if (e.type === 'spawn' && e.elite) r.say('elite');
     else if (e.type === 'kill' && e.elite) r.say('elite_down');
     else if (e.type === 'spawn' && e.enemy !== 'goblin') r.say(`first_${e.enemy}`);
@@ -404,8 +407,9 @@ export class GameScene extends Phaser.Scene {
   consumeEvents() {
     for (const e of this.world.events) {
       this.radioFor(e);
-      if (e.type === 'spawn' && !this.bot) this.queueCard(e.elite ? 'elite' : 'enemy', e.enemy);
+      if (e.type === 'spawn' && !this.bot) this.queueCard(e.boss ? 'boss' : e.elite ? 'elite' : 'enemy', e.enemy);
       if (e.type === 'kill') this.parts.death(e.x, e.y, COLORS[e.enemy]);
+      if (e.type === 'kill' && e.boss) this.parts.explosion(e.x, e.y, 70);
       else if (e.type === 'hit') this.parts.sparks(e.x, e.y - 8, FX.spark, 3);
       else if (e.type === 'spawn') this.parts.portal(this.map.gate.x, this.map.gate.y, this.map.gate.r);
       else if (e.type === 'levelUp') this.parts.levelUp(this.world.heli.x, this.world.heli.y);
@@ -613,8 +617,9 @@ export class GameScene extends Phaser.Scene {
       const ahead = e.goal && e.state === 'charge' ? e.goal : w.path.at(e.d + 8);
       const flip = ahead.x < e.x;
       // элитный: крупнее, под ним пульсирует красное свечение
-      const sc = (SPRITES.keyScale[e.type] ?? SPRITES.scale) * (e.elite ? ELITE.scale : 1);
-      if (e.elite) g.fillStyle(ELITE.aura, ELITE.auraAlpha * (0.75 + 0.25 * Math.sin(w.t * 6 + e.id))).fillEllipse(e.x, e.y, cfg.radius * ELITE.auraR * 2.2, cfg.radius * ELITE.auraR * 1.1);
+      const tier = e.boss ? BOSS : e.elite ? ELITE : null;
+      const sc = (SPRITES.keyScale[e.type] ?? SPRITES.scale) * (tier?.scale ?? 1);
+      if (tier) g.fillStyle(tier.aura, tier.auraAlpha * (0.75 + 0.25 * Math.sin(w.t * 6 + e.id))).fillEllipse(e.x, e.y, cfg.radius * tier.auraR * 2.2, cfg.radius * tier.auraR * 1.1);
       const img = this.spr(e.type, e.x, e.y - (e.blocked ? 0 : bob(e.id)), flip, sc);
       if (e.hurtT > 0) img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
       if (e.type === 'berserker' && e.stabAt) img.setRotation(flip ? -0.3 : 0.3);
@@ -622,9 +627,10 @@ export class GameScene extends Phaser.Scene {
         top.lineStyle(3, 0xc8ccd0).lineBetween(e.x, e.y - 14, e.stabAt.x, e.stabAt.y - 6);
       }
       if (e.slowed || e.blocked) g.lineStyle(1, COLORS.wire, 0.8).strokeCircle(e.x, e.y, cfg.radius + 4);
-      if (e.hp < e.maxHp) this.hpBar(top, e.x, e.y - DRAW.hpOffset[e.type] * (e.elite ? ELITE.scale : 1), e.hp / e.maxHp, DRAW.hpBarW * (e.elite ? 0.9 : 0.6));
+      if (e.hp < e.maxHp && !e.boss) this.hpBar(top, e.x, e.y - DRAW.hpOffset[e.type] * (tier?.scale ?? 1), e.hp / e.maxHp, DRAW.hpBarW * (e.elite ? 0.9 : 0.6));
     }
     this.hidePool();
+    this.drawBossBar(top);
 
     // Снаряды — над фигурами
     // трассеры: короткая линия по направлению полёта; при вылете — вспышка у ствола
@@ -787,6 +793,26 @@ export class GameScene extends Phaser.Scene {
 
   hidePool() {
     for (let i = this.poolI; i < this.pool.length; i++) this.pool[i].setVisible(false);
+  }
+
+  // Полоса босса над экраном: имя и здоровье, пока он жив
+  drawBossBar(g) {
+    const b = this.world.boss;
+    if (!this.bossText) {
+      this.bossText = this.add.text(VIEW.width / 2, BOSS.barY - 4, '', {
+        fontFamily: '"Courier New", Courier, monospace', fontSize: `${DRAW.fontSize * 0.7}px`, fontStyle: 'bold', color: '#f0d8ff', stroke: '#1a0a2a', strokeThickness: 4,
+      }).setOrigin(0.5, 1).setDepth(15);
+    }
+    this.bossText.setVisible(!!b && !this.card);
+    if (b && !this.aiming) this.hint.setVisible(false); // подсказка внизу — на месте полосы
+    else this.hint.setVisible(true);
+    if (!b || this.card) return;
+    this.bossText.setText(T.bossBar(T.dossier.bosses[b.type].name));
+    const x0 = VIEW.width / 2 - BOSS.barW / 2;
+    g.fillStyle(0x1a0a2a, 0.85).fillRect(x0 - 3, BOSS.barY - 3, BOSS.barW + 6, BOSS.barH + 6);
+    g.fillStyle(0x3a2a4a).fillRect(x0, BOSS.barY, BOSS.barW, BOSS.barH);
+    g.fillStyle(BOSS.barColor).fillRect(x0, BOSS.barY, BOSS.barW * Math.max(0, b.hp / b.maxHp), BOSS.barH);
+    for (let i = 1; i < 10; i++) g.fillStyle(0x1a0a2a, 0.6).fillRect(x0 + (BOSS.barW * i) / 10 - 1, BOSS.barY, 2, BOSS.barH);
   }
 
   hpBar(g, x, y, k, width = DRAW.hpBarW) {

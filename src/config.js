@@ -211,6 +211,25 @@ export const ELITE = {
   scale: 1.3, aura: 0xff4a7a, auraAlpha: 0.5, auraR: 1.9, // 0.32 на траве почти не видно
 };
 
+// Босс прорыва (жанр: босс в конце врат). В последней волне — группа с boss: true. Это тот же враг, только
+// огромный: поведение своего типа (копейщик бьёт пушки копьём, берсерк бежит рубить постройки без окопа).
+// Внизу экрана — его полоса здоровья. Прорвался — убежищу сразу shelter. Свален — ядра россыпью и много опыта.
+// Замер 2026-11-10 (30–40 забегов): при hp ×14 босса не валил никто — всегда доходил (−6), побеждали за счёт запаса
+// убежища, то есть босс был просто налогом. hp ×6, speed 0.6: босс свален — ур.1 2t1w 28/30, ур.2 2t1w2e 27/30,
+// ур.3 3t1w3e4m 27/30. Победы: ур.1 2t1w 38/40, trap 8/40; ур.2 2t1w2e 27/30, 3t0w3e 29/30; ур.3 без мин 6/30,
+// 4m 27/30, minetrap 0/30.
+export const BOSS = {
+  hp: 6,          // множитель здоровья
+  speed: 0.6,
+  hit: 2,
+  shelter: 6,     // урон убежищу при прорыве — ровно, не множитель
+  xp: 12,
+  cores: 4,       // сколько ядер роняет
+  // картинка
+  scale: 2, aura: 0x8a2ad8, auraAlpha: 0.45, auraR: 2.6,
+  barW: 520, barH: 14, barY: 676, barColor: 0xb04ae8, // внизу, над морем: верх занят радио
+};
+
 export const SHELTER = {
   hp: 10,
 };
@@ -313,6 +332,7 @@ const WAVES_1 = {
     { groups: [
       { type: 'goblin', count: 38, every: 0.64, at: 0 },
       { type: 'spearman', count: 17, every: 1.6, at: 3, elite: 2 },
+      { type: 'spearman', count: 1, every: 1, at: 24, boss: true },
     ] },
   ],
 };
@@ -386,6 +406,7 @@ const WAVES_2 = {
       { type: 'goblin', count: 32, every: 0.7, at: 0 },
       { type: 'spearman', count: 11, every: 2, at: 3, elite: 2 },
       { type: 'berserker', count: 5, every: 5, at: 6, elite: 1 },
+      { type: 'berserker', count: 1, every: 1, at: 26, boss: true },
     ] },
   ],
 };
@@ -456,6 +477,7 @@ const WAVES_3 = {
       { type: 'goblin', count: 44, every: 0.3, at: 0 },
       { type: 'spearman', count: 18, every: 0.5, at: 5 },
       { type: 'berserker', count: 6, every: 1.6, at: 10, elite: 2 },
+      { type: 'berserker', count: 1, every: 1, at: 18, boss: true },
     ] },
   ],
 };

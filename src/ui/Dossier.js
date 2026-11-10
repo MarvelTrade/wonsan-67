@@ -1,6 +1,6 @@
 // Досье «Сектора 67»: карточка «Новый враг» / «Новое укрепление». Бумага, штамп, рисунок слева,
 // текст на машинке справа, кнопка «Принято». Пока карточка открыта, сцена держит игру на паузе.
-import { VIEW, COLORS, DOSSIER as D, ENEMIES, BUILD, ABILITIES, DRAW, ELITE } from '../config.js';
+import { VIEW, COLORS, DOSSIER as D, ENEMIES, BUILD, ABILITIES, DRAW, ELITE, BOSS } from '../config.js';
 import { T } from '../texts.js';
 import { makeButton } from './button.js';
 
@@ -8,7 +8,7 @@ export class Dossier {
   // entry: { kind: 'enemy' | 'build', id } ; onClose — когда нажали «Принято»
   constructor(scene, entry, onClose) {
     this.scene = scene;
-    const book = { enemy: T.dossier.enemies, elite: T.dossier.elites, build: T.dossier.builds, ability: T.dossier.abilities }[entry.kind];
+    const book = { enemy: T.dossier.enemies, elite: T.dossier.elites, boss: T.dossier.bosses, build: T.dossier.builds, ability: T.dossier.abilities }[entry.kind];
     const info = book[entry.id];
     const cx = VIEW.width / 2;
     const cy = VIEW.height / 2;
@@ -29,12 +29,12 @@ export class Dossier {
     const py = y0 + D.headerH + D.pad;
     g.fillStyle(COLORS.ground).fillRect(px, py, D.picture, D.picture);
     g.lineStyle(4, COLORS.paperEdge).strokeRect(px, py, D.picture, D.picture);
-    const sprKey = entry.kind === 'enemy' || entry.kind === 'elite' ? `spr_${entry.id}` : null;
+    const sprKey = ['enemy', 'elite', 'boss'].includes(entry.kind) ? `spr_${entry.id}` : null;
     if (sprKey && scene.textures.exists(sprKey)) {
       // фон рамки — кусок дороги, на нём фигура крупно
       g.fillStyle(0xb09670).fillRect(px + 6, py + D.picture * 0.55, D.picture - 12, D.picture * 0.3);
       // элитный — красное свечение за фигурой
-      if (entry.kind === 'elite') for (let i = 3; i > 0; i--) g.fillStyle(ELITE.aura, 0.18).fillCircle(px + D.picture / 2, py + D.picture * 0.55, D.picture * 0.12 * i);
+      if (entry.kind === 'elite' || entry.kind === 'boss') for (let i = 3; i > 0; i--) g.fillStyle(entry.kind === 'boss' ? BOSS.aura : ELITE.aura, 0.18).fillCircle(px + D.picture / 2, py + D.picture * 0.55, D.picture * 0.12 * i);
       const img = add(scene.add.image(px + D.picture / 2, py + D.picture * 0.82, sprKey).setOrigin(0.5, 0.92));
       const k = Math.min((D.picture * 0.8) / img.width, (D.picture * 0.8) / img.height);
       img.setScale(k);
@@ -51,7 +51,7 @@ export class Dossier {
     const type = (s, size, color = COLORS.ink, extra = {}) =>
       scene.add.text(0, 0, s, { fontFamily: '"Courier New", Courier, monospace', fontSize: `${size}px`, fontStyle: 'bold', color, ...extra });
     add(type(T.dossier.header, D.small).setPosition(x0 + D.pad, y0 + 22));
-    const heading = { enemy: T.dossier.newEnemy, elite: T.dossier.newElite, build: T.dossier.newBuild, ability: T.dossier.newAbility }[entry.kind];
+    const heading = { enemy: T.dossier.newEnemy, elite: T.dossier.newElite, boss: T.dossier.newBoss, build: T.dossier.newBuild, ability: T.dossier.newAbility }[entry.kind];
     add(type(heading, D.small, COLORS.inkRed, { fontStyle: 'bold' })
       .setPosition(x0 + D.pad, y0 + 22 + D.small + 6));
     const red = `#${COLORS.stamp.toString(16).padStart(6, '0')}`;

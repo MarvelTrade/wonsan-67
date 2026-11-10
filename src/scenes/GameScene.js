@@ -7,6 +7,7 @@ import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
 import { saveRun } from '../telemetry.js';
 import { markWin, wasSeen, markSeen, markQuests } from '../progress.js';
+import { loadSettings, setSetting } from '../settings.js';
 import { Dossier } from '../ui/Dossier.js';
 import { SystemWindow } from '../ui/SystemWindow.js';
 import { drawTerrain } from '../art/terrain.js';
@@ -151,7 +152,36 @@ export class GameScene extends Phaser.Scene {
       this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT');
     }
 
+    // цифры урона: пул текстов, переиспользуются
+    this.dmgPool = Array.from({ length: DRAW.dmgPool }, () => this.add.text(0, 0, '', {
+      fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.dmgSize}px`, fontStyle: 'bold', color: '#f4f0e4', stroke: '#14101c', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(5.6).setVisible(false));
+    this.dmgLive = [];
+
     if (import.meta.env.DEV) window.__world = this.world;
+  }
+
+  // Цифра урона: всплывает и гаснет за DRAW.dmgLife (если включено в паузе)
+  showDamage(e) {
+    if (!loadSettings().dmgNumbers || !this.dmgPool.length) return;
+    const t = this.dmgPool.pop();
+    const col = e.tier === 'boss' ? '#e8c0ff' : e.tier === 'elite' ? '#ffb0a0' : '#f4f0e4';
+    t.setText(String(Math.round(e.n))).setColor(col).setVisible(true).setAlpha(1);
+    this.dmgLive.push({ t, x: e.x + (Math.random() - 0.5) * 14, y: e.y - 22, age: 0 });
+  }
+
+  updateDamage(dt) {
+    for (const d of this.dmgLive) {
+      d.age += dt;
+      const k = d.age / DRAW.dmgLife;
+      d.t.setPosition(d.x, d.y - DRAW.dmgRise * k).setAlpha(Math.max(0, 1 - k * k));
+    }
+    const done = this.dmgLive.filter((d) => d.age >= DRAW.dmgLife);
+    for (const d of done) {
+      d.t.setVisible(false);
+      this.dmgPool.push(d.t);
+    }
+    if (done.length) this.dmgLive = this.dmgLive.filter((d) => d.age < DRAW.dmgLife);
   }
 
   // ---------- Ввод ----------
@@ -330,15 +360,19 @@ export class GameScene extends Phaser.Scene {
     const cy = VIEW.height / 2;
     const dim = this.add.rectangle(cx, cy, VIEW.width, VIEW.height, 0x000000, 0.55).setDepth(18).setInteractive();
     const plate = this.add.graphics().setDepth(18.5);
-    plate.fillStyle(0x000000, 0.35).fillRoundedRect(cx - 296, cy - 136, 600, 236, 12);
-    plate.fillStyle(COLORS.paper).fillRoundedRect(cx - 300, cy - 140, 600, 236, 12);
-    plate.lineStyle(2, COLORS.paperEdge).strokeRoundedRect(cx - 300, cy - 140, 600, 236, 12);
+    plate.fillStyle(0x000000, 0.35).fillRoundedRect(cx - 296, cy - 136, 600, 300, 12);
+    plate.fillStyle(COLORS.paper).fillRoundedRect(cx - 300, cy - 140, 600, 300, 12);
+    plate.lineStyle(2, COLORS.paperEdge).strokeRoundedRect(cx - 300, cy - 140, 600, 300, 12);
     const title = this.add.text(cx, cy - 80, T.paused, {
       fontFamily: '"Courier New", Courier, monospace', fontSize: `${DRAW.resultTitle}px`, fontStyle: 'bold', color: COLORS.ink,
     }).setOrigin(0.5).setDepth(19);
     const resume = makeButton(this, cx - 130, cy + 30, T.resume, 'primary', () => this.setPaused(false), { depth: 19 });
     const map = makeButton(this, cx + 130, cy + 30, T.toMap, 'plain', () => this.scene.start('map'), { depth: 19 });
-    this.pauseUi = [dim, plate, title, resume, map];
+    const dmg = makeButton(this, cx, cy + 102, T.dmgToggle(loadSettings().dmgNumbers), 'dark', () => {
+      setSetting('dmgNumbers', !loadSettings().dmgNumbers);
+      dmg.label.setText(T.dmgToggle(loadSettings().dmgNumbers));
+    }, { depth: 19, size: DRAW.fontSize * 0.9, padY: 10 });
+    this.pauseUi = [dim, plate, title, resume, map, dmg];
   }
 
   update(_time, delta) {
@@ -409,6 +443,7 @@ export class GameScene extends Phaser.Scene {
       else if (e.type === 'spawn') this.parts.portal(this.map.gate.x, this.map.gate.y, this.map.gate.r);
       else if (e.type === 'levelUp') this.parts.levelUp(this.world.heli.x, this.world.heli.y);
       else if (e.type === 'core') this.parts.core(e.x, e.y);
+      else if (e.type === 'dmg') this.showDamage(e);
       else if (e.type === 'crate') {
         this.notice(T.crates.notice(T.crates[e.item]));
         this.parts.sparks(e.x, e.y - 10, CRATES.glow, 10);
@@ -706,6 +741,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.fx = this.fx.filter((fx) => fx.t > 0);
     this.parts.update(dt);
+    this.updateDamage(dt);
     this.drawAmbient();
 
     // Меню постройки

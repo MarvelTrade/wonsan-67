@@ -207,6 +207,7 @@ export const T = {
   level: (n) => `Ур. ${n}`,
   gateRank: (r) => `врата ранга ${r}`,
   rankShort: (r) => `ранг ${r}`,
+  dmgToggle: (on) => `Цифры урона: ${on ? 'вкл' : 'выкл'}`,
   crates: {
     medkit: { name: 'Аптечка', effect: 'убежищу +1' },
     volunteers: { name: 'Добровольцы', effect: '+2 чел.' },

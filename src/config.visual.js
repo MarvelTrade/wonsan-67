@@ -355,6 +355,11 @@ export const DRAW = {
   rangeFill: 0.07,
   rangeLine: 0.75,
   rangeDashes: 36,
+  // цифры урона (план фазы 1): маленькие, всплывают и гаснут; выключаются в паузе (src/settings.js)
+  dmgLife: 0.5,         // с
+  dmgRise: 22,          // px вверх за жизнь
+  dmgSize: 17,          // на телефоне лёжа ≈ 9 px — мелко, но читается цифрой
+  dmgPool: 28,          // одновременно на экране не больше
   towerSize: 26,
   barrel: 22,
   trenchRadius: 24,

@@ -520,4 +520,5 @@ export const BOT = {
 
 export const RUNS_KEY = 'wonsan67.runs';
 export const PROGRESS_KEY = 'wonsan67.progress';
+export const SETTINGS_KEY = 'wonsan67.settings';
 

@@ -875,6 +875,7 @@ export class World {
   hit(e, damage, from) {
     e.hp -= damage;
     e.hurtT = 0.08;
+    this.events.push({ type: 'dmg', x: e.x, y: e.y, n: damage, tier: e.tier }); // цифры урона — только картинка
     if (e.hp > 0) {
       if (from === 'heli' || from === 'tower') this.events.push({ type: 'hit', x: e.x, y: e.y }); // искры — только картинка
       return;

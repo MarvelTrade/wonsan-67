@@ -1,5 +1,5 @@
 // Вся логика забега без Phaser: её гоняет и сцена в браузере, и бот в Node (scripts/sim.mjs).
-import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW } from '../config.js';
+import { LEVELS, HELI, SURVIVORS, BUILD, ENEMIES, SHELTER, SIM, VIEW, STARS, CALL_EARLY } from '../config.js';
 import { Path, rng } from './path.js';
 
 // Границы мира — по размеру экрана (мир = экран)
@@ -55,6 +55,7 @@ export class World {
       towersBroken: 0, brokenBy: {}, wiresBroken: 0, wiresBrokenBy: {},
       kills: { goblin: 0, spearman: 0, berserker: 0 }, killsBy: { heli: 0, tower: 0, mine: 0 },
       leaked: 0,
+      calledEarly: 0, earlyBonus: 0,
     };
   }
 
@@ -151,6 +152,37 @@ export class World {
         this.events.push({ type: 'waveCleared', index: w.index });
       }
     }
+  }
+
+  // Сколько людей дадут за досрочный вызов следующей волны (0 — вызывать нечего)
+  get earlyBonus() {
+    const w = this.wave;
+    if (this.over || (w.phase !== 'build' && w.phase !== 'break')) return 0;
+    return Math.min(CALL_EARLY.maxBonus, Math.floor(w.timer / CALL_EARLY.perSeconds));
+  }
+
+  get canCallEarly() {
+    const w = this.wave;
+    return !this.over && (w.phase === 'build' || w.phase === 'break');
+  }
+
+  // Вызвать следующую волну сейчас; за сэкономленное время — люди
+  callWave() {
+    if (!this.canCallEarly) return 0;
+    const bonus = this.earlyBonus;
+    this.people += bonus;
+    this.stats.calledEarly++;
+    this.stats.earlyBonus += bonus;
+    this.events.push({ type: 'calledEarly', bonus });
+    this.startWave(this.wave.index + 1);
+    return bonus;
+  }
+
+  // Звёзды за победу: по остатку убежища (STARS)
+  get stars() {
+    if (this.over !== 'win') return 0;
+    const hp = this.shelter.hp;
+    return hp >= STARS.three ? 3 : hp >= STARS.two ? 2 : 1;
   }
 
   startWave(index) {
@@ -573,6 +605,9 @@ export class World {
       killsBy: s.killsBy,
       leaked: s.leaked,
       shelterHp: this.shelter.hp,
+      stars: this.stars,
+      calledEarly: s.calledEarly,
+      earlyBonus: s.earlyBonus,
       duration: Math.round(this.t),
     };
   }

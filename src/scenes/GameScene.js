@@ -6,9 +6,11 @@ import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
 import { saveRun } from '../telemetry.js';
-import { markWin } from '../progress.js';
+import { markWin, wasSeen, markSeen } from '../progress.js';
+import { Dossier } from '../ui/Dossier.js';
 import { Radio } from '../ui/Radio.js';
 import { copyStats, statsText } from '../ui/copyStats.js';
+import { drawStars } from '../ui/stars.js';
 
 const params = new URLSearchParams(location.search);
 const BOT_PLAN = params.get('bot');
@@ -40,10 +42,14 @@ export class GameScene extends Phaser.Scene {
 
     const style = { fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.fontSize}px`, color: COLORS.text };
     const pad = DRAW.hudPad;
-    this.hudWave = this.add.text(pad, pad, '', style);
-    this.hudPeople = this.add.text(pad, pad + DRAW.fontSize * 1.3, '', style);
-    this.hudBoard = this.add.text(pad, pad + DRAW.fontSize * 2.6, '', style);
-    this.hudShelter = this.add.text(VIEW.width - pad, pad, '', style).setOrigin(1, 0);
+    // Подложка HUD — чтобы цифры читались поверх карты
+    const hudBg = this.add.graphics().setDepth(14);
+    hudBg.fillStyle(COLORS.panel, DRAW.hudAlpha).fillRoundedRect(pad / 2, pad / 2, DRAW.hudLeftW, DRAW.fontSize * 3.9 + pad, 8);
+    hudBg.fillRoundedRect(VIEW.width - pad / 2 - DRAW.hudRightW, pad / 2, DRAW.hudRightW, DRAW.fontSize * 1.3 + pad, 8);
+    this.hudWave = this.add.text(pad, pad, '', style).setDepth(15);
+    this.hudPeople = this.add.text(pad, pad + DRAW.fontSize * 1.3, '', style).setDepth(15);
+    this.hudBoard = this.add.text(pad, pad + DRAW.fontSize * 2.6, '', style).setDepth(15);
+    this.hudShelter = this.add.text(VIEW.width - pad, pad, '', style).setOrigin(1, 0).setDepth(15);
     // Пауза: кнопка под «Убежищем»; сама включается, когда вкладка уходит в фон (звонок, свернули)
     this.paused = false;
     this.pauseUi = null;
@@ -52,6 +58,18 @@ export class GameScene extends Phaser.Scene {
         ...style, color: '#101410', backgroundColor: '#cfd3c8', padding: { x: 16, y: 6 },
       }).setOrigin(1, 0).setDepth(16).setInteractive({ useHandCursor: true });
       pauseBtn.on('pointerdown', () => this.setPaused(!this.paused));
+      // «Вызвать волну раньше» — под вратами, пока идёт подготовка или перерыв
+      const gate = this.map.gate;
+      this.callBtn = this.add.text(gate.x + gate.r, gate.y + gate.r + DRAW.callEarlyGap, '', {
+        ...style, color: '#101410', backgroundColor: '#d9b3ff', padding: { x: 14, y: 6 },
+      }).setOrigin(1, 0).setDepth(16).setInteractive({ useHandCursor: true }).setVisible(false);
+      this.callBtn.on('pointerdown', () => {
+        if (this.paused || this.card) return;
+        const bonus = this.world.callWave();
+        if (bonus) this.fx.push({ kind: 'drop', x: this.map.truck.x, y: this.map.truck.y, t: DRAW.fxTime * 2 });
+        this.radio.say('called_early');
+        this.hint.setText('');
+      });
       const onHidden = () => document.hidden && this.setPaused(true);
       document.addEventListener('visibilitychange', onHidden);
       this.events.once('shutdown', () => document.removeEventListener('visibilitychange', onHidden));
@@ -72,6 +90,15 @@ export class GameScene extends Phaser.Scene {
 
     this.radio = new Radio(this);
     this.radio.say(`l${this.levelId}_start`);
+
+    // Досье: новые укрепления этого уровня (которых не было на прошлом) — сразу; новые враги — при первой встрече
+    this.cards = [];
+    this.card = null;
+    if (!BOT_PLAN) {
+      const prev = LEVELS.find((l) => l.id === this.levelId - 1);
+      for (const b of this.world.level.builds) if (prev && !prev.builds.includes(b)) this.queueCard('build', b);
+      this.openNextCard();
+    }
 
     // Ввод: палец/мышь ведут вертолёт, нажатие по месту — меню постройки
     if (!this.bot) {
@@ -94,7 +121,7 @@ export class GameScene extends Phaser.Scene {
   // ---------- Ввод ----------
   onDown(p, over) {
     // Нажали на кнопку (пауза, итоги) — это не команда вертолёту
-    if (this.world.over || this.paused || over?.length) return;
+    if (this.world.over || this.paused || this.card || over?.length) return;
     const x = p.worldX;
     const y = p.worldY;
     if (this.menu) {
@@ -144,6 +171,29 @@ export class GameScene extends Phaser.Scene {
     for (const t of this.menuTexts) t.setVisible(false);
   }
 
+  // ---------- Досье ----------
+  queueCard(kind, id) {
+    const key = `${kind}:${id}`;
+    if (wasSeen(key) || this.cards.some((c) => c.key === key) || this.card?.key === key) return;
+    this.cards.push({ kind, id, key });
+  }
+
+  openNextCard() {
+    if (this.card || !this.cards.length || this.world.over) return;
+    const entry = this.cards.shift();
+    this.closeMenu();
+    this.world.heli.target = null;
+    this.dragging = false;
+    this.card = {
+      key: entry.key,
+      ui: new Dossier(this, entry, () => {
+        markSeen(entry.key);
+        this.card = null;
+        this.openNextCard();
+      }),
+    };
+  }
+
   // ---------- Цикл ----------
   setPaused(on) {
     if (this.world.over || on === this.paused) return;
@@ -177,7 +227,12 @@ export class GameScene extends Phaser.Scene {
 
   update(_time, delta) {
     const w = this.world;
-    if (this.paused) return;
+    // Пауза или открыто досье — время стоит, но кадр и HUD рисуем (иначе на старте пусто)
+    if (this.paused || this.card) {
+      this.draw(0);
+      this.drawHud();
+      return;
+    }
     if (!this.bot && this.keys) {
       const k = this.keys;
       const dx = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
@@ -218,6 +273,7 @@ export class GameScene extends Phaser.Scene {
   consumeEvents() {
     for (const e of this.world.events) {
       this.radioFor(e);
+      if (e.type === 'spawn' && !this.bot) this.queueCard('enemy', e.enemy);
       if (e.type === 'kill') this.fx.push({ kind: 'kill', x: e.x, y: e.y, t: DRAW.fxTime, color: COLORS[e.enemy] });
       else if (e.type === 'stab') this.fx.push({ kind: 'stab', x: e.x, y: e.y, t: DRAW.fxTime });
       else if (e.type === 'towerBroken' || e.type === 'wireBroken') {
@@ -231,6 +287,7 @@ export class GameScene extends Phaser.Scene {
       else if (e.type === 'leak') this.cameras.main.shake(120, 0.004);
     }
     this.world.events.length = 0;
+    this.openNextCard();
   }
 
   // ---------- Фон ----------
@@ -447,6 +504,11 @@ export class GameScene extends Phaser.Scene {
     this.hudPeople.setText(T.people(w.people));
     this.hudBoard.setText(T.onboard(w.heli.carrying, HELI.capacity));
     this.hudShelter.setText(T.shelter(w.shelter.hp, w.shelter.maxHp));
+    if (this.callBtn) {
+      const show = w.canCallEarly;
+      this.callBtn.setVisible(show);
+      if (show) this.callBtn.setText(T.callEarly(w.wave.index + 2, w.earlyBonus));
+    }
   }
 
   // ---------- Итоги ----------
@@ -455,7 +517,7 @@ export class GameScene extends Phaser.Scene {
     const r = w.summary();
     if (!this.saved) {
       saveRun(r);
-      if (w.over === 'win' && !this.bot) markWin(this.levelId); // бот прогресс не открывает
+      if (w.over === 'win' && !this.bot) markWin(this.levelId, r.stars); // бот прогресс не открывает
       this.saved = true;
     }
     this.closeMenu();
@@ -467,12 +529,14 @@ export class GameScene extends Phaser.Scene {
     const title = this.add.text(cx, cy - DRAW.resultH / 2 + 44, w.over === 'win' ? T.win : T.lose, {
       fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultTitle}px`, color: w.over === 'win' ? '#9be37a' : '#ff8a6a',
     }).setOrigin(0.5).setDepth(21);
-    // Последняя реплика по радио — цитатой под заголовком
+    // Звёзды (у поражения — пустые)
+    drawStars(panel, cx, cy - DRAW.resultH / 2 + 100, DRAW.resultStar, r.stars);
+    // Последняя реплика по радио — цитатой под звёздами
     const [who, quote] = T.radio[w.over];
-    this.add.text(cx, cy - DRAW.resultH / 2 + 88, `«${quote}» — ${T.speakers[who]}`, {
+    this.add.text(cx, cy - DRAW.resultH / 2 + 146, `«${quote}» — ${T.speakers[who]}`, {
       fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultBody * 0.85}px`, fontStyle: 'italic', color: COLORS.textDim,
     }).setOrigin(0.5).setDepth(21);
-    const body = this.add.text(cx, cy + 4, T.summary(r).join('\n'), {
+    const body = this.add.text(cx, cy + 34, T.summary(r).join('\n'), {
       fontFamily: 'Arial, sans-serif', fontSize: `${DRAW.resultBody}px`, color: COLORS.text, align: 'center', lineSpacing: 8,
     }).setOrigin(0.5).setDepth(21);
     const btn = this.add.text(cx, cy + DRAW.resultH / 2 - 52, T.again, {

@@ -1,9 +1,10 @@
 // Карта серий: побережье, серии слева направо. Пройденная открывает следующую.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, LEVELS, SPEAKERS, WORLD_MAP as M } from '../config.js';
+import { VIEW, COLORS, LEVELS, SPEAKERS, DRAW, WORLD_MAP as M } from '../config.js';
 import { T } from '../texts.js';
 import { loadProgress, unlockedCount } from '../progress.js';
 import { copyStats, statsText } from '../ui/copyStats.js';
+import { drawStars } from '../ui/stars.js';
 
 let booted = false;
 
@@ -85,6 +86,7 @@ export class MapScene extends Phaser.Scene {
       g.fillStyle(fill).fillCircle(x, y, M.nodeRadius);
       g.lineStyle(3, 0x101410, 0.6).strokeCircle(x, y, M.nodeRadius);
       text(x, y, unlocked ? String(level.id) : T.locked, M.nodeFont, '#101410');
+      if (won) drawStars(g, x, y - M.nodeRadius - 22, DRAW.mapStar, progress.stars[level.id] || 1);
       text(x, y + M.nodeRadius + 26, level.title, M.labelFont, unlocked ? COLORS.text : COLORS.textDim).setShadow(2, 2, '#000', 4);
       text(x, y + M.nodeRadius + 52, won ? T.mapWon : unlocked ? T.mapOpen : T.mapLocked, M.labelFont * 0.8, COLORS.textDim).setShadow(2, 2, '#000', 4);
 

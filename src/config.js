@@ -52,6 +52,13 @@ export const COLORS = {
   text: '#f4f0e4',
   textDim: '#a8a89a',
   panel: 0x101410,
+  star: 0xffd447,
+  starEmpty: 0x3a3f36,
+  paper: 0xe9dfc4,      // досье
+  paperEdge: 0x9c8c66,
+  stamp: 0xa8322a,
+  ink: '#1e1c16',
+  inkRed: '#9a2a22',
 };
 
 // Карта уровня 1. Враги выходят из врат справа и идут по дороге к убежищу слева.
@@ -181,6 +188,19 @@ export const ENEMIES = {
 
 export const SHELTER = {
   hp: 10,
+};
+
+// Звёзды за победу — по тому, сколько осталось от убежища
+export const STARS = {
+  three: 9,             // убежище ≥ 9 из 10 — три звезды
+  two: 5,               // ≥ 5 — две, меньше — одна
+};
+
+// «Вызвать волну раньше»: за каждые perSeconds, оставшиеся до волны, — один человек, не больше maxBonus.
+// Бот волны раньше не вызывает — замеры баланса без этого бонуса.
+export const CALL_EARLY = {
+  perSeconds: 10,
+  maxBonus: 2,
 };
 
 // Волны. groups — кто, сколько, с каким интервалом и с какой секунды волны.
@@ -401,6 +421,20 @@ export const SPEAKERS = {
   institute: { bg: 0x2c3a4a, skin: 0xcfae8c, hair: 0x6b6a66, name: '#9ec3e6', glasses: true },
 };
 
+// Досье «Новый враг» / «Новое укрепление» (только картинка)
+export const DOSSIER = {
+  width: 900,
+  height: 430,
+  headerH: 84,
+  pad: 30,
+  picture: 230,
+  pictureScale: 2.6,
+  title: 38,
+  body: 22,
+  small: 18,
+  button: 28,
+};
+
 export const RUNS_KEY = 'wonsan67.runs';
 export const PROGRESS_KEY = 'wonsan67.progress';
 
@@ -445,10 +479,16 @@ export const DRAW = {
   fontSize: 26,         // 20 → 26: на телефоне лёжа выходило ~10 px
   resultTitle: 44,
   resultW: 1060,
-  resultH: 500,
+  resultH: 560,
+  resultStar: 26,
+  mapStar: 14,
   resultBody: 24,
   resultButton: 30,
   hudPad: 14,
+  hudAlpha: 0.55,       // подложка HUD
+  hudLeftW: 400,
+  hudRightW: 240,
+  callEarlyGap: 14,     // кнопка «волна раньше» — под вратами
   fxTime: 0.35,         // с — вспышки попаданий и смертей
   gatePulse: 2.5,       // рад/с
   resultRestartDelay: 2.5, // с — бот с ?runs=N перезапускает забег сам

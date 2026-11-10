@@ -800,7 +800,7 @@ export class GameScene extends Phaser.Scene {
     const b = this.world.boss;
     if (!this.bossText) {
       this.bossText = this.add.text(VIEW.width / 2, BOSS.barY - 4, '', {
-        fontFamily: '"Courier New", Courier, monospace', fontSize: `${DRAW.fontSize * 0.7}px`, fontStyle: 'bold', color: '#f0d8ff', stroke: '#1a0a2a', strokeThickness: 4,
+        fontFamily: '"Courier New", Courier, monospace', fontSize: `${DRAW.fontSize * 0.9}px`, fontStyle: 'bold', color: '#f0d8ff', stroke: '#1a0a2a', strokeThickness: 4,
       }).setOrigin(0.5, 1).setDepth(15);
     }
     this.bossText.setVisible(!!b && !this.card);

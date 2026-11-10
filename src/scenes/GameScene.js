@@ -100,7 +100,7 @@ export class GameScene extends Phaser.Scene {
       ...style, color: COLORS.textDim, fontSize: `${DRAW.fontSize * 0.8}px`, align: 'center',
       wordWrap: { width: VIEW.width * 0.7 },
     }).setOrigin(0.5, 1);
-    this.menuTexts = [0, 1, 2].map(() => this.add.text(0, 0, '', { ...style, color: '#101410' }).setOrigin(0.5).setVisible(false));
+    this.menuTexts = [0, 1, 2].map(() => this.add.text(0, 0, '', { ...style, color: '#101410' }).setOrigin(0.5).setVisible(false).setDepth(10.5));
 
     this.result = null;
 
@@ -714,7 +714,7 @@ export class GameScene extends Phaser.Scene {
         const can = w.canBuild(this.menu.slot.id, b.kind);
         m.fillStyle(can ? COLORS.slotAffordable : 0x777766, 0.95).fillRoundedRect(b.rect.x, b.rect.y, b.rect.width, b.rect.height, 6);
         this.menuTexts[i].setText(T[b.kind](BUILD[b.kind].cost))
-          .setPosition(b.rect.centerX, b.rect.centerY).setVisible(true).setDepth(10);
+          .setPosition(b.rect.centerX, b.rect.centerY).setVisible(true).setDepth(10.5); // над подложкой (на одной глубине 10 текст уходил под неё)
       });
       m.lineStyle(2, COLORS.slotAffordable).strokeCircle(this.menu.slot.x, this.menu.slot.y, DRAW.slotRadius + 4);
     }

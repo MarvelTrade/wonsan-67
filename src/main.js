@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { VIEW } from './config.js';
 import { GameScene } from './scenes/GameScene.js';
 import { MapScene } from './scenes/MapScene.js';
+import { CoverScene } from './scenes/CoverScene.js';
 import { T } from './texts.js';
 
 const game = new Phaser.Game({
@@ -12,7 +13,7 @@ const game = new Phaser.Game({
   backgroundColor: VIEW.background,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   input: { activePointers: 2 },
-  scene: [MapScene, GameScene], // первая — карта; ссылки с ?bot / ?level она сразу передаёт в игру
+  scene: [CoverScene, MapScene, GameScene], // обложка тома → карта серий → уровень; ?bot / ?level идут мимо обложки
 });
 
 // Подсказка «поверни телефон» — видна только стоя на сенсорном экране (см. index.html)

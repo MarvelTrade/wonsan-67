@@ -656,6 +656,24 @@ export const GATE_RANKS = {
   S: { color: 0x1a1a1a },
 };
 
+// Обложка тома (src/scenes/CoverScene.js): раскладка панелей манхвы и живых врат. Только картинка.
+export const COVER = {
+  gutter: 14, border: 4, paper: '#f2ede2', ink: '#0e0b18',
+  slantTop: 478, slantDrop: 68,       // нижний край верхней панели: y = slantTop − slantDrop·x/1280
+  splitTop: 700, splitBottom: 600,    // косой разрез нижних панелей: x вверху и внизу
+  portrait: 232,
+  heroB: { portraitX: 340, captionX: 44, captionY: 528 },
+  heroC: { portraitX: 712, captionX: 1236, captionY: 528 },
+  gate: { x: 760, y: 150, r: 100 },   // врата над станцией
+  sfx: { x: 960, y: 70, size: 64, angle: -10 },
+  titleX: 50, titleY: 26, titleKoSize: 112, titleSubSize: 30,
+  narration: { x: 50, y: 206, size: 22 },
+  bubble: { x: 64, y: 300, w: 450, h: 104 }, bubbleSize: 22,
+  volumeSize: 24, heroName: 34, heroPower: 20,
+  tapY: 36, tapSize: 26,
+  turn: 0.9,                           // с — переворот страницы
+};
+
 // Фон уровня (src/art/terrain.js): палитра и плотность. Только картинка.
 export const TERRAIN = {
   // свет сцены одним градиентом (docs/art-style.md): тёплый закат сверху слева, фиолетовая тень снизу справа

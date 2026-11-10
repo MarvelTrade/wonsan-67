@@ -67,6 +67,29 @@ export class Hud {
     this.tLevel.setPosition(lx + H.pad, y3 - 4);
     g.fillStyle(H.empty).fillRect(lx + H.pad, y3 + h2 / 2 - 9, lw - H.pad * 2, 4);
     g.fillStyle(H.xp).fillRect(lx + H.pad, y3 + h2 / 2 - 9, (lw - H.pad * 2) * world.xpProgress, 4);
+
+    // задания серии: □ открыто (со счётчиком), ✓ выполнено, ✗ провалено; скрытое — без названия, пока не выполнено
+    const qs = world.quests;
+    if (!qs.length) return;
+    if (!this.tQuests) {
+      this.tQuests = qs.map(() => this.scene.add.text(0, 0, '', { fontFamily: 'Arial, sans-serif', fontSize: `${H.questFont}px`, fontStyle: 'bold' }).setDepth(15).setOrigin(0, 0.5));
+    }
+    const lineH = H.questFont + 8;
+    let y = y3 + h2 / 2 + H.gap + lineH / 2;
+    let wMax = 0;
+    qs.forEach((q, i) => {
+      const t = this.tQuests[i];
+      const v = world.questValue(q);
+      const name = q.hidden && q.state !== 'done' ? `??? ${T.quests.hidden}` : T.quests.name(q);
+      const mark = q.state === 'done' ? '✓' : q.state === 'failed' ? '✗' : '□';
+      const count = q.state === 'open' && v !== null ? `  ${Math.min(v, q.n)}/${q.n}` : '';
+      t.setText(`${mark} ${name}${count}`).setColor(q.state === 'done' ? H.questDone : q.state === 'failed' ? H.questFailed : H.questOpen);
+      t.setAlpha(q.state === 'failed' ? 0.75 : 1);
+      t.setPosition(H.margin + H.pad, y + i * lineH);
+      wMax = Math.max(wMax, t.width);
+    });
+    // подложка под списком — потом, но глубже текста (g рисуется на 14)
+    g.fillStyle(H.fill, H.alpha * 0.8).fillRoundedRect(H.margin, y - lineH / 2 - 4, wMax + H.pad * 2, lineH * qs.length + 8, H.radius);
   }
 
   // плашка: фон, значок, текст; extra — дорисовать поверх (полоска убежища)

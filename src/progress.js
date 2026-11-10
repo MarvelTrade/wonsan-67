@@ -10,9 +10,10 @@ export function loadProgress() {
       won: Array.isArray(p.won) ? p.won : [],
       stars: p.stars && typeof p.stars === 'object' ? p.stars : {},
       seen: Array.isArray(p.seen) ? p.seen : [],
+      quests: p.quests && typeof p.quests === 'object' ? p.quests : {},
     };
   } catch {
-    return { won: [], stars: {}, seen: [] };
+    return { won: [], stars: {}, seen: [], quests: {} };
   }
 }
 
@@ -31,6 +32,16 @@ export function markWin(levelId, stars = 1) {
   p.stars[levelId] = Math.max(p.stars[levelId] || 0, stars);
   save(p);
   return p;
+}
+
+// Задания серии: запомнить выполненные (за все забеги — объединение)
+export function markQuests(levelId, ids) {
+  if (!ids.length) return;
+  const p = loadProgress();
+  const had = new Set(p.quests[levelId] || []);
+  for (const id of ids) had.add(id);
+  p.quests[levelId] = [...had];
+  save(p);
 }
 
 // Досье (новый враг / новое укрепление) показываем один раз

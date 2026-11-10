@@ -6,7 +6,7 @@ import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
 import { saveRun } from '../telemetry.js';
-import { markWin, wasSeen, markSeen } from '../progress.js';
+import { markWin, wasSeen, markSeen, markQuests } from '../progress.js';
 import { Dossier } from '../ui/Dossier.js';
 import { SystemWindow } from '../ui/SystemWindow.js';
 import { drawTerrain } from '../art/terrain.js';
@@ -267,6 +267,19 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // Плашка «СИСТЕМА · Задание выполнено» под радио: телетайпный голубой, гаснет сама
+  notice(text) {
+    this.noticeUi?.forEach((o) => o.destroy());
+    const t = this.add.text(VIEW.width / 2, HUD.noticeY, text, {
+      fontFamily: '"Courier New", Courier, monospace', fontSize: `${HUD.questFont + 3}px`, fontStyle: 'bold', color: '#16202a',
+    }).setOrigin(0.5).setDepth(17);
+    const bg = this.add.graphics().setDepth(16.9);
+    bg.fillStyle(0xdde8ee, 0.95).fillRect(t.x - t.width / 2 - 16, t.y - t.height / 2 - 8, t.width + 32, t.height + 16);
+    bg.lineStyle(2, 0x1e5a8a).strokeRect(t.x - t.width / 2 - 16, t.y - t.height / 2 - 8, t.width + 32, t.height + 16);
+    this.noticeUi = [t, bg];
+    this.tweens.add({ targets: [t, bg], alpha: 0, delay: HUD.noticeTime * 1000, duration: 500, onComplete: () => [t, bg].forEach((o) => o.destroy()) });
+  }
+
   // ---------- Досье ----------
   queueCard(kind, id) {
     const key = `${kind}:${id}`;
@@ -397,6 +410,11 @@ export class GameScene extends Phaser.Scene {
       else if (e.type === 'spawn') this.parts.portal(this.map.gate.x, this.map.gate.y, this.map.gate.r);
       else if (e.type === 'levelUp') this.parts.levelUp(this.world.heli.x, this.world.heli.y);
       else if (e.type === 'core') this.parts.core(e.x, e.y);
+      else if (e.type === 'questDone') {
+        const q = this.world.quests.find((x) => x.id === e.id);
+        this.notice(T.quests.done(T.quests.name(q), T.quests.reward(q.reward)));
+        this.parts.levelUp(this.world.heli.x, this.world.heli.y);
+      }
       else if (e.type === 'stab') {
         this.fx.push({ kind: 'stab', x: e.x, y: e.y, t: DRAW.fxTime });
         this.parts.sparks(e.x, e.y - 6, FX.spark, 4);
@@ -795,6 +813,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.saved) {
       saveRun(r);
       if (w.over === 'win' && !this.bot) markWin(this.levelId, r.stars); // бот прогресс не открывает
+      if (!this.bot) markQuests(this.levelId, r.quests.filter((q) => q.state === 'done').map((q) => q.id));
       this.saved = true;
     }
     this.closeMenu();
@@ -829,7 +848,7 @@ export class GameScene extends Phaser.Scene {
     });
     panel.lineStyle(1, COLORS.paperEdge, 0.5).lineBetween(x0 + 24, y0 + 222, x0 + W - 24, y0 + 222);
     const body = type(x0 + 28, y0 + 234, T.summary(r).join('\n'), DRAW.resultBody, COLORS.ink, {
-      lineSpacing: 6, fontStyle: 'bold', wordWrap: { width: W - 56 },
+      lineSpacing: 3, fontStyle: 'bold', wordWrap: { width: W - 56 },
     });
     // кнопки
     const by = y0 + H - 46;
@@ -840,7 +859,7 @@ export class GameScene extends Phaser.Scene {
     if (canNext) makeButton(this, cx + 250, by, T.next, 'ok', () => this.scene.restart({ level: next.id }));
     if (!this.bot) {
       const n = JSON.parse(statsText()).runs.length;
-      const copyBtn = makeButton(this, cx, y0 + H + 36, T.copyStats(n), 'dark', async () => {
+      const copyBtn = makeButton(this, cx, y0 + H + 26, T.copyStats(n), 'dark', async () => {
         copyBtn.label.setText((await copyStats()) ? T.copied : T.copyFailed);
       }, { size: DRAW.fontSize * 0.75, padY: 6 });
     }

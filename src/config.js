@@ -479,10 +479,34 @@ const BOT_3 = {
 };
 
 // Уровни идут слева направо по побережью. builds — что можно строить на уровне.
+// Задания серии (жанр: задания системы). kind:
+//   save / cores / elites / callEarly — счётчик за забег; дошёл до n — награда сразу (people — люди, xp — опыт);
+//   noTowerLost / fullShelter / noWire / noOwnMine — условие на весь забег: проверяется при победе, ломается сразу.
+// hidden — игрок видит «скрытое задание», пока не выполнит. Выполненные — в прогрессе (progress.quests).
+// Замер 2026-11-10 (бот, 30 забегов): при save 12 / cores 3 / save 16 / cores 6 бот выполнял счётные задания в 30/30 —
+// подняли. Сейчас бот всё равно делает их почти всегда (он идеальный): ур.1 2t1w побед 29/30, trap 7/30, без проволоки
+// (2t0w) скрытое — 25/30; ур.2 2t1w2e «ни одной пушки» 24/30,
+// 3t0w3e — 6/30 (берсерк успевает до окопов); ур.3 3t1w3e4m «без царапины» 26/30. Награды баланс не сдвинули.
+const QUESTS_1 = [
+  { id: 'save', kind: 'save', n: 14, reward: { people: 2 } },
+  { id: 'cores', kind: 'cores', n: 5, reward: { xp: 25 } },
+  { id: 'noWire', kind: 'noWire', hidden: true },
+];
+const QUESTS_2 = [
+  { id: 'save', kind: 'save', n: 18, reward: { people: 2 } },
+  { id: 'elites', kind: 'elites', n: 2, reward: { xp: 30 } },
+  { id: 'noTowerLost', kind: 'noTowerLost', hidden: true },
+];
+const QUESTS_3 = [
+  { id: 'cores', kind: 'cores', n: 10, reward: { xp: 30 } },
+  { id: 'fullShelter', kind: 'fullShelter' },
+  { id: 'noOwnMine', kind: 'noOwnMine', hidden: true },
+];
+
 export const LEVELS = [
-  { id: 1, title: 'Серия 2 · Проволока', rank: 'E', map: MAP_1, waves: WAVES_1, builds: ['tower', 'wire'], abilities: ['artillery'], bot: BOT_1 },
-  { id: 2, title: 'Серия 3 · Окоп', rank: 'D', map: MAP_2, waves: WAVES_2, survivors: SURVIVORS_2, builds: ['tower', 'wire', 'trench'], abilities: ['artillery', 'reinforce'], bot: BOT_2 },
-  { id: 3, title: 'Серия 4 · Мины', rank: 'C', map: MAP_3, waves: WAVES_3, survivors: SURVIVORS_3, builds: ['tower', 'wire', 'trench', 'mine'], abilities: ['artillery', 'reinforce'], bot: BOT_3 },
+  { id: 1, title: 'Серия 2 · Проволока', rank: 'E', quests: QUESTS_1, map: MAP_1, waves: WAVES_1, builds: ['tower', 'wire'], abilities: ['artillery'], bot: BOT_1 },
+  { id: 2, title: 'Серия 3 · Окоп', rank: 'D', quests: QUESTS_2, map: MAP_2, waves: WAVES_2, survivors: SURVIVORS_2, builds: ['tower', 'wire', 'trench'], abilities: ['artillery', 'reinforce'], bot: BOT_2 },
+  { id: 3, title: 'Серия 4 · Мины', rank: 'C', quests: QUESTS_3, map: MAP_3, waves: WAVES_3, survivors: SURVIVORS_3, builds: ['tower', 'wire', 'trench', 'mine'], abilities: ['artillery', 'reinforce'], bot: BOT_3 },
 ];
 
 // Общее для бота на всех уровнях
@@ -706,6 +730,12 @@ export const HUD = {
   waveOn: 0x6a3a8a,
   xp: 0x9ad8ff,
   levelUp: 0x1e5a8a,
+  questFont: 19,        // список заданий под «Ур.»: на телефоне ≈ 10 px
+  questDone: '#9bd36e',
+  questFailed: '#d08a7a',
+  questOpen: '#e8e2d0',
+  noticeY: 290,         // «Задание выполнено» — ниже радио и списка заданий (на 196 налезало на список)
+  noticeTime: 2.8,
   lowHp: 3,             // убежище ≤ этого — значок и полоска красные
   flashTime: 0.45,      // с — плашка убежища краснеет, когда его бьют
 };
@@ -779,7 +809,7 @@ export const DRAW = {
   fontSize: 26,         // 20 → 26: на телефоне лёжа выходило ~10 px
   resultTitle: 44,
   resultW: 1060,
-  resultH: 540,
+  resultH: 624,         // 540 → 624: со строкой заданий текст отчёта уровня 3 налезал на кнопки
   resultStar: 26,
   resultSmall: 20,
   // штамп отчёта: корейская надпись (шрифт с хангылем есть на Windows, Android, iOS), снизу RU · EN

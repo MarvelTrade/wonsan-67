@@ -52,6 +52,8 @@ export class World {
     // Ядра на земле (свой генератор — прежние seed не сбиваются)
     this.cores = [];
     this.coreRand = rng((seed ^ 0xc0e367) >>> 0);
+    // Задания серии: open → done | failed
+    this.quests = (this.level.quests || []).map((q) => ({ ...q, state: 'open' }));
     this.enemies = [];
     this.shots = [];
     this.survivors = [];
@@ -136,11 +138,19 @@ export class World {
     this.updateTowers(dt);
     this.updateShots(dt);
     this.updateHeliGun(dt);
+    this.updateQuests();
     if (this.shelter.hp <= 0) this.finish('lose');
   }
 
   finish(result) {
     if (this.over) return;
+    // задания на весь забег засчитываются только победой; остальное открытое — провалено
+    this.updateQuests();
+    for (const q of this.quests) {
+      if (q.state !== 'open') continue;
+      if (result === 'win' && World.whole(q)) this.completeQuest(q);
+      else q.state = 'failed';
+    }
     this.over = result;
     this.events.push({ type: 'over', result });
   }
@@ -421,6 +431,45 @@ export class World {
       this.enemies = this.enemies.filter((e) => !leaked.includes(e));
       this.shelter.hp = Math.max(0, this.shelter.hp);
     }
+  }
+
+  // ---------- Задания ----------
+  static whole(q) {
+    return ['noTowerLost', 'fullShelter', 'noWire', 'noOwnMine'].includes(q.kind);
+  }
+
+  // счётчик задания (для whole — null)
+  questValue(q) {
+    const s = this.stats;
+    return { save: s.saved, cores: s.coresTaken, elites: s.elitesKilled, callEarly: s.calledEarly }[q.kind] ?? null;
+  }
+
+  questBroken(q) {
+    const s = this.stats;
+    if (q.kind === 'noTowerLost') return s.towersBroken > 0;
+    if (q.kind === 'fullShelter') return this.shelter.hp < this.shelter.maxHp;
+    if (q.kind === 'noWire') return s.wiresBuilt > 0;
+    if (q.kind === 'noOwnMine') return (s.brokenBy.mine || 0) + (s.wiresBrokenBy.mine || 0) > 0;
+    return false;
+  }
+
+  updateQuests() {
+    for (const q of this.quests) {
+      if (q.state !== 'open') continue;
+      if (World.whole(q)) {
+        if (this.questBroken(q)) {
+          q.state = 'failed';
+          this.events.push({ type: 'questFailed', id: q.id });
+        }
+      } else if (this.questValue(q) >= q.n) this.completeQuest(q);
+    }
+  }
+
+  completeQuest(q) {
+    q.state = 'done';
+    if (q.reward?.people) this.people += q.reward.people;
+    if (q.reward?.xp) this.gainXp(q.reward.xp);
+    this.events.push({ type: 'questDone', id: q.id });
   }
 
   // Элитный: множители скорости и ударов
@@ -828,6 +877,7 @@ export class World {
       earlyBonus: s.earlyBonus,
       abilityUsed: s.abilityUsed,
       elitesKilled: s.elitesKilled,
+      quests: this.quests.map((q) => ({ id: q.id, kind: q.kind, n: q.n, hidden: !!q.hidden, state: q.state })),
       coresDropped: s.coresDropped,
       coresTaken: s.coresTaken,
       heroLevel: this.heroLevel,

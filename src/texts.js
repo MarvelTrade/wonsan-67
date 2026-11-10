@@ -167,6 +167,26 @@ export const T = {
   },
   level: (n) => `Ур. ${n}`,
   gateRank: (r) => `врата ранга ${r}`,
+  rankShort: (r) => `ранг ${r}`,
+  // задания серии
+  quests: {
+    title: 'ЗАДАНИЯ',
+    hidden: 'скрытое задание',
+    name: (q) => ({
+      save: `Спасти ${q.n} человек`,
+      cores: `Подобрать ${q.n} ${q.n % 10 >= 2 && q.n % 10 <= 4 && (q.n % 100 < 12 || q.n % 100 > 14) ? 'ядра' : q.n % 10 === 1 && q.n % 100 !== 11 ? 'ядро' : 'ядер'}`,
+      elites: `Свалить ${q.n} элитных`,
+      callEarly: `Вызвать волну раньше ${q.n} раз`,
+      noTowerLost: 'Не потерять ни одной пушки',
+      fullShelter: 'Убежище без единой царапины',
+      noWire: 'Выстоять без проволоки',
+      noOwnMine: 'Свои мины ничего не сломали',
+    })[q.kind],
+    reward: (r) => (r?.people ? `+${r.people} чел.` : r?.xp ? `+${r.xp} опыта` : ''),
+    done: (name, reward) => `СИСТЕМА · Задание выполнено: ${name}${reward ? ` · ${reward}` : ''}`,
+    map: (k, n) => `задания ${k}/${n}`,
+    report: (qs, name) => `Задания: ${qs.map((q) => `${q.state === 'done' ? '✓' : '✗'} ${q.hidden && q.state !== 'done' ? '???' : name(q)}`).join(' · ')}`,
+  },
   callEarly: (n, bonus) => `▶ Волна ${n}${bonus ? ` · +${bonus} чел.` : ''}`,
   summary: (r) => {
     const by = r.brokenBy || {};
@@ -188,6 +208,7 @@ export const T = {
       ...(r.wiresBuilt ? [`Проволоки порвано: ${r.wiresBroken}${r.wiresBrokenBy?.berserker ? ` (берсерки ${r.wiresBrokenBy.berserker})` : ''}`] : []),
       ...(r.minesBuilt ? [`Мины: взорвано ${Object.values(trig).reduce((a, b) => a + b, 0)} из ${r.minesBuilt}, под гоблинами ${trig.goblin || 0}, убито минами ${r.killsBy.mine || 0}`] : []),
       `Убито: ${kills.join(', ')}   Прорвалось: ${r.leaked}`,
+      ...(r.quests?.length ? [T.quests.report(r.quests, T.quests.name)] : []),
       ...(r.heroLevel ? [`Система: уровень ${r.heroLevel}   Ядер подобрано: ${r.coresTaken || 0} из ${r.coresDropped || 0}${r.elitesKilled ? `   Элитных: ${r.elitesKilled}` : ''}`] : []),
     ];
   },

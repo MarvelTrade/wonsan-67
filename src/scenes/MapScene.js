@@ -120,7 +120,7 @@ export class MapScene extends Phaser.Scene {
       // подпись: название серии и состояние — на плашке, чтобы читались поверх арта
       const [series, name] = level.title.split(' · ');
       const t1 = text(x, y + M.nodeRadius + 26, name || level.title, M.labelFont, unlocked ? COLORS.text : COLORS.textDim);
-      const t2 = text(x, y + M.nodeRadius + 54, `${series.toLowerCase()} · ${level.rank ? `${T.gateRank(level.rank)} · ` : ''}${won ? T.mapWon : unlocked ? T.mapOpen : T.mapLocked}`, M.labelFont * 0.72, COLORS.textDim);
+      const t2 = text(x, y + M.nodeRadius + 54, `${series.toLowerCase()} · ${level.rank ? `${T.rankShort(level.rank)} · ` : ''}${won ? T.mapWon : unlocked ? T.mapOpen : T.mapLocked}${level.quests && (progress.quests[level.id] || []).length ? ` · ${T.quests.map(progress.quests[level.id].length, level.quests.length)}` : ''}`, M.labelFont * 0.72, COLORS.textDim);
       const pw = Math.max(t1.width, t2.width) + 28;
       g.fillStyle(0x101410, 0.7).fillRoundedRect(x - pw / 2, y + M.nodeRadius + 8, pw, 64, 10);
 

@@ -20,10 +20,10 @@ export const COLORS = {
   gateCore: 0xd9b3ff,
   ground: 0x26302a,
   rock: 0x3a3f3b,
-  sea: 0x1c3446,
+  sea: 0x3a7aa0,
   shelter: 0x7d8288,
-  road: 0x4a4436,
-  roadEdge: 0x5d5644,
+  road: 0xb09670,
+  roadEdge: 0x7a6448,
   truck: 0x3fae4a,
   heli: 0x6f7d4a,
   heliRotor: 0xcfe9f5,
@@ -94,7 +94,7 @@ const MAP_1 = {
   // Где появляются люди, ждущие эвакуации (дома вдоль берега и в сопках)
   survivorSpots: [
     [300, 150], [520, 120], [700, 200], [1080, 330], [1000, 520],
-    [760, 640], [560, 660], [260, 380], [1180, 620], [420, 250],
+    [760, 606], [560, 610], [260, 380], [1180, 600], [420, 250],
   ],
 };
 
@@ -300,7 +300,7 @@ const MAP_2 = {
   ],
   survivorSpots: [
     [420, 120], [640, 150], [880, 140], [1100, 300], [1160, 420],
-    [820, 640], [560, 650], [300, 640], [120, 470], [480, 300],
+    [820, 608], [560, 612], [300, 606], [120, 470], [480, 300],
   ],
 };
 
@@ -370,8 +370,8 @@ const MAP_3 = {
     { id: 'S7', x: 450, y: 635 },
   ],
   survivorSpots: [
-    [420, 120], [560, 260], [1100, 260], [1160, 460], [1080, 640],
-    [760, 640], [460, 420], [150, 620], [120, 200], [940, 230],
+    [420, 120], [560, 260], [1100, 260], [1160, 460], [1080, 606],
+    [700, 470], [460, 420], [150, 606], [120, 200], [940, 230],
   ],
 };
 
@@ -503,25 +503,30 @@ export const WORLD_MAP = {
 
 // Фон уровня (src/art/terrain.js): палитра и плотность. Только картинка.
 export const TERRAIN = {
+  // свет сцены одним градиентом (docs/art-style.md): тёплый закат сверху слева, фиолетовая тень снизу справа
+  lightWarm: 0xffa860,
+  lightCool: 0x4a3a8a,
+  lightAlpha: 0.16,
+  gateGlow: 0x9a5ad8,
   seed: 67,
   seaH: 46,
   patches: 70,
   tufts: 900,
   stones: 120,
   trees: 34,
-  grass: 0x3a4a30,
-  grassDark: 0x2c3a26,
-  grassDry: 0x5e6440,
-  grassLight: 0x7d8a58,
-  sand: 0x9e8b62,
+  grass: 0x5d7a4a,
+  grassDark: 0x4a6340,
+  grassDry: 0x8a8a58,
+  grassLight: 0x9ab070,
+  sand: 0xe0cfa0,
   sea: 0x22405a,
-  seaLight: 0x3f6d8e,
-  foam: 0xd8e6ea,
+  seaLight: 0x7ab8d8,
+  foam: 0xf4fbff,
   road: 0x6e5c44,
   roadEdge: 0x4e4130,
-  roadShoulder: 0x55583a,
-  rut: 0x584a36,
-  stone: 0x8a8578,
+  roadShoulder: 0x6e7a4a,
+  rut: 0x957c5a,
+  stone: 0xc8bca8,
   wall: 0x9a9284,
   roofTile: 0x8a4a38,
   roofTileDark: 0x6a3a2c,
@@ -551,11 +556,15 @@ export const PROPS = {
 // Отрисованы в двойном разрешении: scale — во сколько раз показать относительно файла.
 export const SPRITES = {
   keys: ['goblin', 'spearman', 'berserker', 'civ0', 'civ1', 'civ2', 'soldier', 'heli',
-    'houseA', 'houseB', 'treeA', 'treeB', 'bunker', 'truck', 'nest'],
-  scale: 0.5,
-  unitScale: 0.8,       // фигуры крупнее «логического» размера — читаются на телефоне
-  // свой масштаб у неподвижных: бункер — по размеру убежища, дома и деревья — заметнее
-  keyScale: { bunker: 0.95, truck: 0.62, houseA: 0.72, houseB: 0.72, treeA: 0.8, treeB: 0.8, nest: 0.62, heli: 0.62 },
+    'houseA', 'houseB', 'treeA', 'treeB', 'bunker', 'truck', 'nest', 'watchtower'],
+  scale: 0.5,           // файл в 2×: 0.5 — «логический» размер
+  // Масштаб от файла (2×). Пропорции: человек ≈ треть высоты дома, вертолёт ≈ полтора дома, бункер — по убежищу.
+  // Было unitScale 0.8 и heli 0.62 — фигуры и вертолёт выходили в 2–3 раза крупнее домов.
+  keyScale: {
+    goblin: 0.3, spearman: 0.3, berserker: 0.34, soldier: 0.3, civ0: 0.28, civ1: 0.28, civ2: 0.28,
+    heli: 0.32, houseA: 0.6, houseB: 0.6, treeA: 0.6, treeB: 0.6, bunker: 0.5, truck: 0.42, nest: 0.42,
+    watchtower: 0.42,
+  },
   bob: 1.6,             // px — подпрыгивание при ходьбе
   bobSpeed: 11,
   heliShadow: 0.3,
@@ -639,14 +648,16 @@ export const DRAW = {
   trenchWidth: 8,
   mineRadius: 7,
   soldierRadius: 8,
-  nestGunH: 12,         // px — высота станка пулемёта над землёй (ствол рисуется оттуда)
-  hpOffset: { goblin: 40, spearman: 50, berserker: 58, soldier: 36, nest: 34 }, // полоска HP над спрайтом
+  nestGunH: 8,         // px — высота станка пулемёта над землёй (ствол рисуется оттуда)
+  hpOffset: { goblin: 30, spearman: 34, berserker: 44, soldier: 28, nest: 26 },
+  roofH: 34,            // px — на столько выше точки появления стоит крыша дома: люди ждут на крышах
+  base: { w: 136, h: 96, post: 14, fenceH: 10 }, // огороженная база грузовика (вышки — по углам) // полоска HP над спрайтом
   abilityR: 40,         // кнопки умений
   abilityGap: 16,
   abilityBottom: 76,    // от нижнего края до низа кнопок умений (над морем и подсказкой)
   heliLength: 78,       // транспортный вертолёт: длиннее и шире прежнего силуэта
   heliWidth: 24,
-  rotorRadius: 46,
+  rotorRadius: 40,
   shadowOffset: 14,
   survivorRadius: 6,
   survivorRing: 16,

@@ -1,7 +1,7 @@
 // Сцена забега: рисует World примитивами, принимает ввод, ведёт HUD и экран итогов.
 // Правила — в src/sim/World.js, числа — в config.js.
 import * as Phaser from 'phaser';
-import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES } from '../config.js';
+import { VIEW, COLORS, HELI, BUILD, ENEMIES, SIM, DRAW, LEVELS, ABILITIES, PROPS, HUD, SPRITES, TERRAIN } from '../config.js';
 import { World } from '../sim/World.js';
 import { Bot } from '../sim/bot.js';
 import { T } from '../texts.js';
@@ -397,7 +397,9 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < 24; i += 2) {
       g.beginPath().arc(MAP.truck.x, MAP.truck.y, dr, (i / 24) * Math.PI * 2, ((i + 1) / 24) * Math.PI * 2, false).strokePath();
     }
+    this.drawBase(g, MAP.truck);
     this.prop('truck', MAP.truck.x, MAP.truck.y + 8, false);
+    this.drawLight();
   }
 
   // ---------- Кадр ----------
@@ -457,7 +459,7 @@ export class GameScene extends Phaser.Scene {
 
     // Бойцы подкрепления
     for (const s of w.soldiers) {
-      this.spr('soldier', s.x, s.y - bob(s.id), Math.cos(s.aim) < 0, SPRITES.unitScale);
+      this.spr('soldier', s.x, s.y - bob(s.id), Math.cos(s.aim) < 0);
       this.hpBar(top, s.x, s.y - DRAW.hpOffset.soldier, s.hp / s.maxHp, DRAW.hpBarW * 0.6);
     }
 
@@ -496,8 +498,9 @@ export class GameScene extends Phaser.Scene {
     // Люди — машут, кольцо тает, пока ждут
     for (const s of w.survivors) {
       const k = s.life / w.surv.life;
-      g.lineStyle(2, COLORS.survivorRing, 0.25 + 0.5 * Math.min(1, k)).strokeCircle(s.x, s.y, DRAW.survivorRing);
-      this.spr(`civ${s.id % 3}`, s.x, s.y - bob(s.id) * 0.6, s.id % 2 === 0, SPRITES.unitScale);
+      // человек стоит на крыше дома (дом — ниже точки на roofH), машет; кольцо — поверх
+      top.lineStyle(2, COLORS.survivorRing, 0.25 + 0.5 * Math.min(1, k)).strokeEllipse(s.x, s.y, DRAW.survivorRing * 2, DRAW.survivorRing * 1.2);
+      this.spr(`civ${s.id % 3}`, s.x, s.y - bob(s.id) * 0.6, s.id % 2 === 0).setDepth(2 + (s.y + DRAW.roofH) / 1000 + 0.0005);
     }
 
     // Враги — смотрят по ходу дороги (берсерк — на цель), подпрыгивают на ходу, белеют от попадания
@@ -505,7 +508,7 @@ export class GameScene extends Phaser.Scene {
       const cfg = ENEMIES[e.type];
       const ahead = e.goal && e.state === 'charge' ? e.goal : w.path.at(e.d + 8);
       const flip = ahead.x < e.x;
-      const img = this.spr(e.type, e.x, e.y - (e.blocked ? 0 : bob(e.id)), flip, SPRITES.unitScale);
+      const img = this.spr(e.type, e.x, e.y - (e.blocked ? 0 : bob(e.id)), flip);
       if (e.hurtT > 0) img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
       if (e.type === 'berserker' && e.stabAt) img.setRotation(flip ? -0.3 : 0.3);
       if (e.type === 'spearman' && e.stabAt) {
@@ -568,6 +571,38 @@ export class GameScene extends Phaser.Scene {
       });
       m.lineStyle(2, COLORS.slotAffordable).strokeCircle(this.menu.slot.x, this.menu.slot.y, DRAW.slotRadius + 4);
     }
+  }
+
+  // База грузовика: утоптанная площадка, забор из кольев с колючкой (вид 3/4), две вышки по углам
+  drawBase(g, truck) {
+    const B = DRAW.base;
+    const x0 = truck.x - B.w / 2;
+    const y0 = truck.y - B.h / 2;
+    g.fillStyle(0x000000, 0.12).fillRoundedRect(x0 + 4, y0 + 5, B.w, B.h, 6);
+    g.fillStyle(0xc8b48a, 0.85).fillRoundedRect(x0, y0, B.w, B.h, 6);
+    g.lineStyle(1, 0x8a7656, 0.6).strokeRoundedRect(x0, y0, B.w, B.h, 6);
+    // забор: колья по периметру, две нитки колючки; спереди (ниже) забор перекрывает площадку
+    const posts = [];
+    for (let x = x0; x <= x0 + B.w; x += B.post) posts.push([x, y0], [x, y0 + B.h]);
+    for (let y = y0 + B.post; y < y0 + B.h; y += B.post) posts.push([x0, y], [x0 + B.w, y]);
+    g.lineStyle(2, 0x5a4430);
+    for (const [x, y] of posts) g.lineBetween(x, y, x, y - B.fenceH);
+    g.lineStyle(1, 0x9a9a92, 0.9);
+    for (const h of [B.fenceH * 0.4, B.fenceH * 0.85]) {
+      g.strokeRect(x0, y0 - h, B.w, B.h);
+    }
+    this.prop('watchtower', x0 + 6, y0 + 4, false);
+    this.prop('watchtower', x0 + B.w - 6, y0 + B.h - 2, true);
+  }
+
+  // Свет сцены одним градиентом поверх земли (под фигурами): тёплый закат и фиолетовое свечение врат
+  drawLight() {
+    const P = TERRAIN;
+    const l = this.add.graphics().setDepth(1.9);
+    l.fillGradientStyle(P.lightWarm, P.lightWarm, P.lightCool, P.lightCool, P.lightAlpha, P.lightAlpha * 0.4, P.lightAlpha * 0.4, P.lightAlpha * 1.4);
+    l.fillRect(0, 0, VIEW.width, VIEW.height);
+    const gate = this.map.gate;
+    for (let i = 6; i >= 1; i--) l.fillStyle(P.gateGlow, 0.035).fillCircle(gate.x, gate.y, gate.r * (1 + i * 0.6));
   }
 
   // Неподвижный спрайт (дом, дерево, бункер, грузовик): точка опоры — по sprites.json, глубина — по y

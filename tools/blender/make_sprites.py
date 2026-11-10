@@ -36,13 +36,22 @@ def lin(h):
     return (r ** 2.2, g ** 2.2, b ** 2.2, 1.0)
 
 
+SHADOW_TINT = 0x3c3070  # фиолетовая тень
+LIGHT_TINT = 0xfff0d2   # тёплый закатный блик
+
+
 def shade(h, k):
-    """Цвет темнее/светлее: k < 1 — тень (с уходом в синеву, как в манхве), k > 1 — блик."""
+    """Цвет темнее/светлее в манхва-палитре (docs/art-style.md): тень уходит в фиолетово-синий
+    (SHADOW_TINT), блик — в тёплый закатный (LIGHT_TINT), как на обложке 1967 года."""
     r, g, b = (h >> 16) & 255, (h >> 8) & 255, h & 255
     if k < 1:
-        r, g, b = r * k, g * k, b * k + (1 - k) * 40
+        tr, tg, tb = (SHADOW_TINT >> 16) & 255, (SHADOW_TINT >> 8) & 255, SHADOW_TINT & 255
+        m = 0.38
+        r, g, b = r * k * (1 - m) + tr * m, g * k * (1 - m) + tg * m, b * k * (1 - m) + tb * m
     else:
-        r, g, b = r + (255 - r) * (k - 1), g + (255 - g) * (k - 1), b + (255 - b) * (k - 1)
+        tr, tg, tb = (LIGHT_TINT >> 16) & 255, (LIGHT_TINT >> 8) & 255, LIGHT_TINT & 255
+        q = k - 1
+        r, g, b = r + (tr - r) * q, g + (tg - g) * q, b + (tb - b) * q
     return (int(min(255, r)) << 16) | (int(min(255, g)) << 8) | int(min(255, b))
 
 
@@ -449,6 +458,27 @@ def nest():
     cyl(4, 6, (0, 0, 8), toon("tripod", 0x2a2a26), verts=10)                  # станок (ствол — в игре)
 
 
+def watchtower():
+    wood, wood_d, roof = toon("twood", 0x8a6a46), toon("twoodd", 0x5a4430), toon("troof", 0x4a5a3a)
+    steel, glass = toon("tsteel", 0x5a5e62), flat("lamp", 0xfff4c8)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cyl(1.4, 44, (sx * 7, sy * 7, 22), wood, verts=8)                     # четыре ноги
+    for z in (12, 28):
+        for sy in (-1, 1):
+            box((16, 1, 1.2), (0, sy * 7, z), wood_d)                             # перекладины
+    box((22, 22, 2), (0, 0, 45), wood_d)                                          # площадка
+    for sy in (-1, 1):
+        box((22, 1, 6), (0, sy * 10.5, 49), wood)                                 # перила
+        box((1, 22, 6), (sy * 10.5, 0, 49), wood)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cyl(0.8, 12, (sx * 10, sy * 10, 56), wood_d, verts=6)                 # стойки крыши
+    cone(17, 0.5, 8, (0, 0, 66), roof, rot=(0, 0, math.pi / 4), verts=4)          # крыша-пирамида
+    cyl(2.4, 4, (7, -9, 52), steel, axis="y", verts=12)                           # прожектор
+    cyl(1.8, 0.6, (7, -11.2, 52), glass, axis="y", verts=12)
+
+
 def build_all():
     c = CHAR_TILT
     render("goblin", 44, 44, goblin, foot=(0.5, 0.92), tilt=c)
@@ -466,6 +496,7 @@ def build_all():
     render("bunker", 124, 96, bunker, foot=(0.5, 0.74), tilt=c)
     render("truck", 72, 48, truck, foot=(0.5, 0.72), tilt=c)
     render("nest", 52, 40, nest, foot=(0.5, 0.62), tilt=c)
+    render("watchtower", 44, 84, watchtower, foot=(0.5, 0.9), tilt=c)
 
 
 build_all()

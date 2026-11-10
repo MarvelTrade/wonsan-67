@@ -1,7 +1,7 @@
 // Статичный фон уровня, рисуется один раз: трава с пятнами, берег с пеной, грунтовая дорога с колеями,
 // а дома (у мест, где ждут люди) и деревья (вдали от дороги) только расставляет — их рисуют спрайты.
 // Возвращает { houses: [{x, y, kind, flip}], trees: [{x, y, kind}] }. Раскладка детерминирована (seed = уровень).
-import { VIEW, TERRAIN as P } from '../config.js';
+import { VIEW, TERRAIN as P, DRAW } from '../config.js';
 import { rng } from '../sim/path.js';
 
 export function drawTerrain(g, world) {
@@ -70,15 +70,16 @@ export function drawTerrain(g, world) {
   const clear = (x, y, pad) =>
     path.nearest(x, y).dist > map.roadWidth / 2 + pad &&
     world.slots.every((s) => Math.hypot(s.x - x, s.y - y) > 40 + pad) &&
-    map.survivorSpots.every(([sx, sy]) => Math.hypot(sx - x, sy - y) > 46 + pad) &&
-    Math.hypot(map.truck.x - x, map.truck.y - y) > 80 + pad &&
+    map.survivorSpots.every(([sx, sy]) => Math.hypot(sx - x, sy + DRAW.roofH * 0.6 - y) > 56 + pad) &&
+    (Math.abs(map.truck.x - x) > DRAW.base.w / 2 + 16 + pad || Math.abs(map.truck.y - y) > DRAW.base.h / 2 + 26 + pad) &&
     Math.hypot(map.gate.x - x, map.gate.y - y) > map.gate.r + 30 + pad &&
     (Math.abs(map.shelter.x - x) > map.shelter.w / 2 + 20 + pad || Math.abs(map.shelter.y - y) > map.shelter.h / 2 + 20 + pad);
 
   // дома — у каждой точки, где появляются люди (оттуда их и забирают)
   const houses = [];
   for (const [sx, sy] of map.survivorSpots) {
-    houses.push({ x: sx + (rand() < 0.5 ? -1 : 1) * R(24, 30), y: sy - R(10, 16), kind: rand() < 0.5 ? 'houseA' : 'houseB', flip: rand() < 0.5 });
+    // дом прямо под точкой: крыша — там, где человек ждёт вертолёт
+    houses.push({ x: sx, y: sy + DRAW.roofH, kind: rand() < 0.5 ? 'houseA' : 'houseB', flip: rand() < 0.5 });
   }
 
   // рощи

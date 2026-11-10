@@ -31,6 +31,22 @@ export class Particles {
     }
   }
 
+  // гильза: латунная палочка вылетает вбок от гнезда, падает и гаснет
+  casing(x, y) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    this.add({ kind: 'line', x, y, vx: side * (50 + Math.random() * 40), vy: -90 - Math.random() * 40, life: 0.45, size: 2, color: F.casing, grav: 520, drag: 1 });
+  }
+
+  // гоблин: распад на зелёные брызги (дугой) и лужица на земле, которая тает
+  goblinSplash(x, y) {
+    for (let i = 0; i < 12; i++) {
+      const s = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
+      const v = 70 + Math.random() * 120;
+      this.add({ x, y: y - 8, vx: Math.cos(s) * v, vy: Math.sin(s) * v, life: 0.5, size: 2 + Math.random() * 1.6, color: i % 3 ? F.goblinGoo : F.goblinGooDark, grav: 420, drag: 1 });
+    }
+    this.add({ kind: 'splat', x, y: y + 2, life: 1.4, size: 9, grow: 8, color: F.goblinGooDark, alpha: 0.7 });
+  }
+
   // смерть врага: белая «звезда» манги, клочья цвета врага, облачко
   death(x, y, color) {
     this.add({ kind: 'burst', x, y: y - 8, life: 0.22, size: 16, color: 0xffffff });
@@ -120,6 +136,7 @@ export class Particles {
         g.fillStyle(p.color, a).fillCircle(p.x, p.y, size * (0.4 + 0.6 * k));
         g.fillStyle(0xffffff, a * 0.6 * k).fillCircle(p.x, p.y, size * 0.35 * k);
       } else if (p.kind === 'ring') g.lineStyle(3 * k + 1, p.color, a).strokeEllipse(p.x, p.y, size * 2, size * 1.2);
+      else if (p.kind === 'splat') g.fillStyle(p.color, p.alpha * k).fillEllipse(p.x, p.y, size * 2, size * 0.9);
       else if (p.kind === 'star' || p.kind === 'burst') {
         // «звезда» манги: лучи из центра, у burst — кругом
         const n = p.kind === 'star' ? 4 : 8;

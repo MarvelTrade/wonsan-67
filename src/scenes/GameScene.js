@@ -492,6 +492,7 @@ export class GameScene extends Phaser.Scene {
       this.radioFor(e);
       if (e.type === 'spawn' && !this.bot) this.queueCard(e.boss ? 'boss' : e.elite ? 'elite' : 'enemy', e.enemy);
       if (e.type === 'kill') this.parts.death(e.x, e.y, COLORS[e.enemy]);
+      if (e.type === 'kill' && e.enemy === 'goblin') this.parts.goblinSplash(e.x, e.y);
       if (e.type === 'kill' && e.boss) this.parts.explosion(e.x, e.y, 70);
       if (e.type === 'kill' && (e.elite || e.boss)) this.hitStop = Math.max(this.hitStop, e.boss ? JUICE.hitStopBoss : JUICE.hitStopElite);
       if (e.type === 'waveStart') this.gateFlash();
@@ -759,6 +760,7 @@ export class GameScene extends Phaser.Scene {
       if (!s.flashed) {
         s.flashed = true;
         this.parts.muzzle(s.x, s.y - (s.from === 'tower' ? DRAW.nestGunH : 0), Math.atan2(dy, dx));
+        if (s.from === 'tower') this.parts.casing(s.x, s.y - DRAW.nestGunH);
       }
       const col = s.from === 'heli' ? COLORS.bullet : COLORS.towerBullet;
       top.lineStyle(2, col, 0.95).lineBetween(s.x, s.y - 8, s.x - (dx / d) * DRAW.tracer, s.y - 8 - (dy / d) * DRAW.tracer);

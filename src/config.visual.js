@@ -370,6 +370,9 @@ export const FX = {
   portal: 0xd9b3ff,
   level: 0x9ad8ff,
   core: 0xd6a8ff,
+  casing: 0xd8b048,      // гильзы у пулемётного гнезда
+  goblinGoo: 0x6fcf3a,   // гоблин распадается зелёными брызгами, без крови
+  goblinGooDark: 0x3e8a1e,
 };
 
 // Размеры отрисовки (только картинка, на правила не влияют)

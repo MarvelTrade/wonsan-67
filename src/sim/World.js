@@ -781,7 +781,7 @@ export class World {
       if (target) {
         s.aim = Math.atan2(target.y - s.y, target.x - s.x);
         target.hp -= cfg.dps * dt;
-        target.hurtT = 0.05;
+        target.hurtT = 0.034;
         if (target.hp <= 0) this.hit(target, 0, 'soldier');
       }
       if (s.hp <= 0) {
@@ -874,7 +874,7 @@ export class World {
 
   hit(e, damage, from) {
     e.hp -= damage;
-    e.hurtT = 0.08;
+    e.hurtT = 0.034; // белая вспышка 1–2 кадра (только картинка; было 0.08 — 5 кадров)
     this.events.push({ type: 'dmg', x: e.x, y: e.y, n: damage, tier: e.tier }); // цифры урона — только картинка
     if (e.hp > 0) {
       if (from === 'heli' || from === 'tower') this.events.push({ type: 'hit', x: e.x, y: e.y }); // искры — только картинка

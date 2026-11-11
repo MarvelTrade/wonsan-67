@@ -62,6 +62,31 @@ series quests, elites, a gate-break boss. Full rules — `CLAUDE.md`; genre mapp
 - The bot plays perfectly with the heli; humans pick up fewer cores/crates and finish fewer counter quests.
   Use phone playtest stats (`scripts/report.mjs stats.json`) to correct for that — they outrank bot numbers.
 
+## No data is «not assessed», never «fine»
+Before judging balance, list what you actually have and mark each as FOUND / ABSENT: bot runs (which plans,
+how many), human stats, playtest notes (`docs/playtests/`). Anything you cannot back with data is reported as
+**«не оценено — нет данных»**, not as healthy and not as a guess. Typical gaps: how a human uses the heli (cores,
+crates, rescue pace), whether players notice a trap themselves, real phone FPS. Saying «the bot wins 28/30» is
+data; saying «so humans will be fine» is not.
+
+## Economy check: where each resource comes from and where it goes
+Run this list whenever income, costs or rewards change (idea adapted from the `balance-check` skill of
+claude-code-game-studios, MIT):
+- **People** — in: start, rooftops (`SURVIVORS`), «save N» quests, crates (volunteers), call-early bonus,
+  `mobilize` perk. Out: guns, wire, trenches, mines. Look at `peopleLeft` per intended plan (target: about one
+  spare building) and at *when* income arrives — a gun affordable only after the wave that needs it is a dead zone.
+- **XP (system)** — in: kills (×tier), rescues, cores, quests. Out: levels → perks. Check levels per run per plan
+  and whether one perk choice dominates (bot always picks the same → maybe a degenerate pick).
+- **Shelter HP** — in: medkits, `heal` perk. Out: leaks (boss −6). A run that wins only on shelter buffer hides a problem.
+- For each: **dead zones** (stretches with nothing to decide or buy), **power spikes** (one perk/crate that flips a
+  run), **degenerate strategies** (one build that wins everywhere, an exploit loop), **skips** (a way to bypass the
+  level's lesson). Report each as found / not found / not assessed.
+
+## Playtest notes
+Live sessions are written with `docs/playtest-notes.md` (one copy per player per session in `docs/playtests/`).
+Every finding goes to one bucket — design, balance, bug, polish — and only then into work. Bugs are «broken»,
+pain points are «feels bad»: keep them apart.
+
 ## Genre layer — what's in, what's next
 In: gate ranks (label only), system levels + perks, cores (XP), crates (medkit / volunteers / flare),
 quests (counter + whole-run + hidden), elites, boss. Candidates from `docs/genre-manhwa.md`: perk points between

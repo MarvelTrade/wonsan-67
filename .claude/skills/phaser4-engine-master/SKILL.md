@@ -53,6 +53,22 @@ Ground things (rings, wire, mines, auras, cores' glow) go on `g`; things that mu
 - Juice is cheap and welcome: particles (`src/art/particles.js`), short rings, pulses — but every effect must
   be readable at phone size and must not hide the road.
 
+## Performance budget — measure first, then optimise
+(Rule adapted from the `perf-profile` skill of claude-code-game-studios, MIT.)
+- **Budget** (from the dev plan): 60 FPS on a 3–4-year-old mid-range Android, landscape 812×375 — frame ≤ 16.7 ms,
+  worst frame in a half-second window ≤ 33 ms. Measure with `?debug=1` (FPS and worst frame, bottom-left). Heaviest
+  scene to test: level 3, wave 3, boss out, all effects on.
+- A number measured on the PC is **not** the phone number. Until someone measures on a real phone, report phone
+  performance as «не оценено», never «OK».
+- Never optimise on a hunch: measure, change one thing, measure again, write both numbers in the commit.
+- Hotspots to check in code (static review finds candidates, the counter confirms):
+  - allocations per frame: new Text/Graphics/arrays in `update`/`draw` (pool them — see damage numbers, tokens);
+  - Graphics redrawn every frame with many shapes (particles cap `FX.max`, terrain is drawn once);
+  - filters: each object with active filters costs an extra pass; external (screen-space) filters are full-screen
+    and the most expensive; `setForceComposite(true)` on a camera makes it render via a framebuffer;
+  - `CaptureFrame`, Displacement, Glow — must sit behind the «Качество: низкое» switch.
+- When a phase-3 layer goes in: FPS before/after on the heaviest scene, and the «low» quality path still works.
+
 ## Phone layout
 - Game renders 1280×720; landscape phone (812×375) shows it ~0.5×. Body text ≥ ~20 px in game units
   (→ ~10 px on phone); key labels ≥ 24. All sizes in `config.js` (`DRAW`, `HUD`, `RADIO`, `SYS_UI`, …).
